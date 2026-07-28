@@ -1,0 +1,5 @@
+# The fortran modules provided by this target.
+provides
+ module_levelpool.mod
+ module_levelpool_properties.mod
+ module_levelpool_state.mod

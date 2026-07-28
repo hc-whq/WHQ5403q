@@ -1,0 +1,129 @@
+<html><body>
+<h1>Technical Report: Urban Sewer Module Design</h1>
+<h2>1. Introduction</h2>
+<p>This design document details the architecture and implementation of a new modules, `module_urban_sewer`, for WRF-Hydro. This module introduces a conceptual urban drainage network layer, enabling the simulation of subsurface conduit flow, combined sewer systems (CSS), pumping stations, and solute transport within urban grid cells.</p>
+<h2>2. Mathematical Framework</h2>
+<h3>2.1 Sewer Hydraulic Model (Diffusive Wave)</h3>
+<p>To accurately simulate backwater effects (where downstream water levels restrict upstream flow), the module utilizes a <b>Diffusive Wave</b> approximation. This is an enhancement over the Kinematic Wave model as it includes the pressure gradient term in the momentum equation.</p>
+<p><b>Discharge Equation:</b></p>
+<p>The flow rate $Q$ is calculated using the Manning's equation modified for the friction slope $S_f$:</p>
+<p>$$ Q = \frac{1}{n} A R^{2/3} \sqrt{|S_f|} \cdot \text{sgn}(S_f) $$</p>
+<p><b>Friction Slope:</b></p>
+<p>The friction slope is approximated by the gradient of the water surface elevation (WSE):</p>
+<p>$$ S_f = \frac{\text{WSE}_{current} - \text{WSE}_{downstream}}{\Delta x} $$</p>
+<p>Where $\text{WSE} = Z_{bed} + h_{water}$.</p>
+<p>This formulation allows for:</p>
+<p>1.  <b>Backwater Effects</b>: Reduced slope $S_f$ decreases discharge when downstream levels are high.</p>
+<p>2.  <b>Reverse Flow</b>: If $\text{WSE}_{down} > \text{WSE}_{current}$, flow direction reverses (negative $Q$).</p>
+<p><b>Continuity Equation:</b></p>
+<p>$$ \frac{V^{t+1} - V^t}{\Delta t} = Q_{in} - Q_{out} - Q_{overflow} $$</p>
+<h3>2.2 Solute Transport Model</h3>
+<p>The module tracks pollutants using a mass-balance approach coupled with hydrological fluxes.</p>
+<p><b>Surface Accumulation:</b></p>
+<p>Pollutants accumulate on impervious surfaces following linear buildup:</p>
+<p>$$ \frac{dM_{surf}}{dt} = \text{AccumRate} - \text{Washoff} - \text{Vacuum} $$</p>
+<p><b>Vacuum Removal:</b></p>
+<p>$$ M_{surf} \leftarrow M_{surf} \cdot (1 - \eta_{vac}) $$</p>
+<p>Where $\eta_{vac}$ is the removal efficiency (e.g., 0.5).</p>
+<p><b>Washoff Function:</b></p>
+<p>Washoff is modeled as an exponential decay function of runoff rate, simulating the "first flush" effect:</p>
+<p>$$ M_{wash} = M_{surf} \cdot (1 - e^{-k_{wash} \cdot Q_{runoff} \cdot \Delta t}) $$</p>
+<h2>3. Module Architecture (`module_urban_sewer.F90`)</h2>
+<p>The module is encapsulated in a standalone Fortran 90 file. It interacts with the main model via a global state array.</p>
+<h3>3.1 Data Structures</h3>
+<p>The `urban_sewer_cell` type is the fundamental unit.</p>
+<p>```fortran</p>
+<p>type urban_sewer_cell</p>
+<p>! -- Configuration --</p>
+<p>logical :: is_active</p>
+<p>integer :: sewer_type         ! 1: Combined, 2: Separated</p>
+<p>! -- Geometry & Topology --</p>
+<p>real :: width                 ! [m]</p>
+<p>real :: depth_max             ! [m] Capacity Limit</p>
+<p>real :: slope                 ! [m/m]</p>
+<p>real :: manning_n             ! Roughness (0.013 default)</p>
+<p>real :: z_bed                 ! [m] Bed Elevation</p>
+<p>integer :: i_down, j_down     ! Indices of downstream cell</p>
+<p>real :: dist_down             ! [m] Distance to next cell</p>
+<p>! -- Pumping Station --</p>
+<p>logical :: has_pump</p>
+<p>real :: pump_capacity         ! [m3/s]</p>
+<p>! -- State Variables --</p>
+<p>real :: water_depth           ! [m]</p>
+<p>real :: discharge             ! [m3/s]</p>
+<p>real :: overflow              ! [m3/s] (CSO/SSO volume)</p>
+<p>! -- Solutes --</p>
+<p>real, dimension(4) :: surf_mass   ! [kg] On Street</p>
+<p>real, dimension(4) :: sewer_mass  ! [kg] In Pipe</p>
+<p>end type urban_sewer_cell</p>
+<p>```</p>
+<h3>3.2 Key Subroutines</h3>
+<p>#### 3.2.1 `urban_sewer_init`</p>
+<ul>
+<li>  <b>Purpose</b>: Allocates memory and establishes network topology.</li>
+<li>  <b>Logic</b>:</li>
+</ul>
+<p>1.  Detects urban cells from land cover data.</p>
+<p>2.  <b>Topology Mapping</b>: Uses the global flow direction grid (`flow_dir`) to identify `i_down`, `j_down` for each cell.</p>
+<p>3.  <b>Elevation Setup</b>: Sets `z_bed` based on surface terrain features (e.g., Terrain Z - 2.0m).</p>
+<p>4.  <b>Sizing Heuristic</b>: Determines conduit size based on contributing area.</p>
+<p>#### 3.2.2 `urban_sewer_drive`</p>
+<p>This is the time-stepping routine called within the routing loop.</p>
+<p><b>Step 1: Inflow Aggregation</b></p>
+<p>$$ Q_{in} = Q_{runoff} + Q_{upstream} + Q_{point\_source} $$</p>
+<p><b>Step 2: Hydraulic Solve (Diffusive Wave)</b></p>
+<p>1.  Compute Water Surface Elevation: $\text{WSE} = Z_{bed} + h$.</p>
+<p>2.  Get Downstream WSE from neighbor $(i_{down}, j_{down})$.</p>
+<p>3.  Calculate Slope: $S_f = (\text{WSE} - \text{WSE}_{down}) / \text{Dist}$.</p>
+<p>4.  Calculate Discharge $Q_{out}$ using Manning's equation with $S_f$.</p>
+<ul>
+<li>  If $S_f < 0$, $Q_{out}$ is negative (reverse flow).</li>
+</ul>
+<p>5.  <b>Capacity Check</b>:</p>
+<ul>
+<li>  Calculate max capacity using conduit geometry.</li>
+<li>  If $h > D_{max}$, handle surcharge/overflow.</li>
+</ul>
+<p><b>Step 3: Mass Balance Update</b></p>
+<p>Update volume and calculate new water depth:</p>
+<p>$$ V^{new} = V^{old} + (Q_{in} - Q_{out} - Q_{overflow}) \cdot dt $$</p>
+<p><b>Step 3: Mass Balance Update</b></p>
+<p>Update volume and calculate new water depth:</p>
+<p>$$ V^{new} = V^{old} + (Q_{in} - Q_{out} - Q_{over}) \cdot dt $$</p>
+<p><b>Step 4: Solute Transport</b></p>
+<p>Assuming Classical Mixing Routine (CSTR - Continuous Stirred Tank Reactor) for the segment:</p>
+<p>$$ C_{sewer} = \frac{M_{sewer}}{V_{water}} $$</p>
+<p>$$ \text{Flux}_{out} = C_{sewer} \cdot Q_{out} $$</p>
+<p>This allows concentration pulses to propagate downstream.</p>
+<h2>4. Integration Strategy</h2>
+<p>To integrate this module into WRF-Hydro 5.4.0:</p>
+<p>1.  <b>Placement</b>: The call to `urban_sewer_drive` should be placed inside `module_RT.F90`, specifically after the `ROUTE_OVERLAND` call.</p>
+<p>2.  <b>Output Coupling</b>:</p>
+<ul>
+<li>  <b>Overflows</b>: The calculated `overflow` variable represents CSO/SSO volumes. This flux should be added back to the Surface Runoff (`surface_water_head_routing`) for the *next* timestep, effectively simulating street flooding from surcharged manholes.</li>
+<li>  <b>Discharge</b>: The end-of-pipe discharge (from cells with no downstream sewer receiver) is added as lateral inflow to the Channel Routing module (`q_lateral`).</li>
+</ul>
+<h2>5. Flow Diagram</h2>
+<p>```mermaid</p>
+<p>graph TD</p>
+<p>A[Precipitation] --> B[Surface Layer]</p>
+<p>B -->|Infiltration| C[Soil Moisture]</p>
+<p>B -->|Excess Rain| D{Impervious?}</p>
+<p>D -- Yes --> E[Accumulation on Surface]</p>
+<p>D -- No --> F[Normal Overland Flow]</p>
+<p>E -->|Washoff| G[Sewer Inlet]</p>
+<p>G --> H[Urban Sewer Module]</p>
+<p>subgraph Sewer_Processing</p>
+<p>H --> I[Add Point Sources]</p>
+<p>I --> J[Add Upstream Flow]</p>
+<p>J --> K[Calculate Manning Flow]</p>
+<p>K --> L{Exceed Capacity?}</p>
+<p>L -- Yes --> M[Calculate Overflow]</p>
+<p>L -- No --> N[Normal Discharge]</p>
+<p>end</p>
+<p>M --> O[Return to Surface / Body]</p>
+<p>N --> P[Downstream Sewer Cell]</p>
+<p>N -->|End of Pipe| Q[Channel Network]</p>
+<p>```</p>
+<p>This design ensures that urban pollution dynamics and hydraulic constraints (pumps/pipes) are physically represented, addressing the primary limitations of the default WRF-Hydro implementation.</p>
+</body></html>

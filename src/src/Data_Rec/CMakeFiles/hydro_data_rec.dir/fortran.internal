@@ -1,0 +1,7 @@
+# The fortran modules provided by this target.
+provides
+ module_gw_gw2d_data.mod
+ module_namelist.mod
+ module_namelist_inc.mod
+ module_rt_data.mod
+ module_rt_inc.mod

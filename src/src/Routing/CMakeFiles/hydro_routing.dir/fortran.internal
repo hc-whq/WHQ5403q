@@ -1,0 +1,15 @@
+# The fortran modules provided by this target.
+provides
+ module_channel_routing.mod
+ module_date_utilities_rt.mod
+ module_gw_baseflow.mod
+ module_gw_gw2d.mod
+ module_hydro_io.mod
+ module_hydro_utils.mod
+ module_lsm_forcing.mod
+ module_noah_chan_param_init_rt.mod
+ module_nwm_io.mod
+ module_nwm_io_dict.mod
+ module_reservoir_routing.mod
+ module_routing.mod
+ module_udmap.mod

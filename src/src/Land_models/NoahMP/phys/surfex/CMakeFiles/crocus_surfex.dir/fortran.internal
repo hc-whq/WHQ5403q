@@ -1,0 +1,11 @@
+# The fortran modules provided by this target.
+provides
+ modd_csts.mod
+ modd_snow_metamo.mod
+ modd_snow_par.mod
+ modd_surf_atm.mod
+ mode_snow3l.mod
+ mode_surf_coefs.mod
+ mode_thermos.mod
+ modi_ini_csts.mod
+ modi_tridiag_ground_snowcro.mod
