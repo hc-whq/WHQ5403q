@@ -350,7 +350,42 @@ contains
      end do
    end do
 
-   q_sogw = runoff2x ![mm] flux from soil to gw bucket !=====||___WHQ___||=====!
+   !=====||___WHQ___||=====!
+   !
+   ! mpi_test BUGFIX: q_sogw is (ixrt,jxrt) but runoff2x here is
+   ! (ix,jx) -- a whole-array assignment with mismatched shape makes gfortran
+   ! auto-reallocate q_sogw down to (ix,jx) (F2003 realloc-on-assignment), after
+   ! which output_rt_nwm (module_NWM_io.F90) still reads it as (ixrt,jxrt) and runs
+   ! off the end of the shrunk array (SIGSEGV at NP=4, silently wrong values at other
+   ! NP). Map into the correctly-offset (ixrt,jxrt) subregion instead, mirroring the
+   ! AGGFACTRT=1 case of the land->routing grid mapping used in simp_gw_buck_nhd above
+   ! (98-109 lines: routing grid gets a 1-cell halo column/row on the left/down side
+   ! only, when a left/down MPI neighbor exists).
+   !
+   !    q_sogw = runoff2x ![mm] flux from soil to gw bucket   !original
+   block
+      integer :: sogw_io, sogw_jo
+      sogw_io = 1
+      sogw_jo = 1
+#ifdef MPP_LAND
+      if (left_id .ge. 0) sogw_io = 2
+      if (down_id .ge. 0) sogw_jo = 2
+#endif
+      q_sogw = 0.0
+      q_sogw(sogw_io:sogw_io+ix-1, sogw_jo:sogw_jo+jx-1) = runoff2x ![mm] flux from soil to gw bucket
+   end block 
+
+   ! mpi_test BUGFIX: q_sogw's halo cells were left at 0 (filled above) instead of
+   ! the neighbor rank's real value, unlike qsub/QSUBDRY (Noah_distr_routing_subsurface.F90)
+   ! which are explicitly synced with MPP_LAND_COM_REAL. The per-rank output stitching
+   ! (write_IO_RT_real, mpp_land.F90) overlaps tiles by 1 cell, so an un-synced boundary
+   ! row/column showed a different value than NP=1 there (same halo pattern as q_intf,
+   ! problem B). Sync it the same way.
+#ifdef MPP_LAND
+   call MPP_LAND_COM_REAL(q_sogw,ixrt,jxrt,99)
+#endif
+   !
+   !=====||___WHQ___||=====!
 
 #ifdef MPP_LAND
     call gw_sum_real(sum_perc8,numbasns,gnumbasns,basnsInd)

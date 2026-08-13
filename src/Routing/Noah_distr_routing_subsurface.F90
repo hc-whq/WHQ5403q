@@ -746,6 +746,18 @@ SUBROUTINE ROUTE_SUBSURFACE1(dist, z, latksat, nexp, soldep, &
 #ifdef MPP_LAND
    call MPP_LAND_COM_REAL(qsub,XX,YY,99)
    call MPP_LAND_COM_REAL(QSUBDRY,XX,YY,99)
+
+   !=====||___WHQ___||=====!
+   !
+   ! mpi_test BUGFIX: q_intf(i,j) is filled once per owning
+   ! rank (688 above) but, unlike qsub/QSUBDRY just above, was never synced
+   ! across the halo. The per-rank output stitching (write_IO_RT_real,
+   ! mpp_land.F90) overlaps tiles by 1 cell, so an un-synced boundary row/column
+   ! showed a different value than NP=1 there. Sync it the same way as qsub.
+   call MPP_LAND_COM_REAL(q_intf,XX,YY,99)
+   !
+   !=====||___WHQ___||=====!
+   
 #endif
 
    return

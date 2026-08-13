@@ -2747,6 +2747,20 @@ ENDIF   ! CROPTYPE == 0
     FTDD(IB) = 0.
     FTID(IB) = 0.
     FTII(IB) = 0.
+    !=====||___WHQ___||=====!
+    !
+    ! FREVD/FREVI/FREGD/FREGI are INTENT(OUT) here but were missing from this
+    ! block, so the "GOTO 100" below returned them undefined whenever COSZ <= 0.
+    ! RADIATION calls SURRAD unconditionally, and SURRAD multiplies them by
+    ! SOLAD/SOLAI: with undefined memory that raises FE_INVALID and aborts the
+    ! run under -ffpe-trap=invalid. No reflected flux exists without sun, so 0
+    ! is the value the rest of this block already implies.
+    FREVD(IB) = 0.
+    FREVI(IB) = 0.
+    FREGD(IB) = 0.
+    FREGI(IB) = 0.
+    !
+    !=====||___WHQ___||=====!
     IF (IB.EQ.1) FSUN = 0.
   END DO
 

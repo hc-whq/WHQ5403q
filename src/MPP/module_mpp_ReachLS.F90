@@ -984,8 +984,23 @@ MODULE MODULE_mpp_ReachLS
 
     ToInd(my_id+1) = kk
     do i = 0, numprocs - 1
-       call MPI_Bcast(ToInd(i+1),1,MPI_INTEGER8,   &
+       !=====||___WHQ___||=====!
+       !    
+       ! mpi_test BUGFIX: ToInd is a default integer (4-byte)
+       ! array (declared above, allocate(ToInd(numprocs))), but this Bcast used
+       ! MPI_INTEGER8 (8-byte), overrunning the array by 4 bytes on the last
+       ! iteration and corrupting the next heap chunk. glibc's chunk rounding
+       ! only makes this land on another allocation when numprocs%4==2 and
+       ! numprocs>=6 (e.g. NP=6,10,14), which is why the corruption only
+       ! surfaced (as a free()-time abort, often far from here) at those NPs.
+       ! Confirmed via valgrind that ToInd is otherwise never read.
+       !
+       !call MPI_Bcast(ToInd(i+1),1,MPI_INTEGER8,   &  !original
+       !     i,HYDRO_COMM_WORLD,ierr)
+       call MPI_Bcast(ToInd(i+1),1,MPI_INTEGER,   &
             i,HYDRO_COMM_WORLD,ierr)
+       !
+       !=====||___WHQ___||=====!
     end do
 
   end subroutine getToInd

@@ -347,7 +347,12 @@ end subroutine get_file_globalatts
           call get_soilcat_netcdf(ncid, xdum,   units, ix, jx, land_cat)
           iret = nf90_close(ncid)
 #endif
+          !=====||___WHQ___||=====!
+          !
+          !out_buff = nint(xdum)  !original
+          where (xdum /= xdum .or. abs(xdum) > real(huge(1))) xdum = 14.0   ! soil category for 'water' 
           out_buff = nint(xdum)
+          !=====||___WHQ___||=====!
      end subroutine get2d_lsm_soltyp
 
 
@@ -8617,6 +8622,20 @@ end subroutine read_routelink
           allocate(tmpn_CC(GNLINKSL))
           allocate(tmpChannK(GNLINKSL))
 
+          !=====||___WHQ___||=====!
+          !
+          ! Route_Link does not necessarily carry every one of these variables
+          ! (e.g. TopWdth/TopWdthCC/nCC are absent unless compound_channel is on).
+          ! Whatever is not read stays as raw heap contents and is then scattered
+          ! to every rank by ReachLS_decomp below, so zero them first.
+          tmpCHLON = 0.0; tmpCHLAT = 0.0; tmpZELEV = 0.0
+          tmpMUSK  = 0.0; tmpMUSX  = 0.0; tmpCHANLEN = 0.0
+          tmpMannN = 0.0; tmpSo    = 0.0; tmpChSSlp  = 0.0
+          tmpBw    = 0.0; tmpTw    = 0.0
+          tmpTw_CC = 0.0; tmpn_CC  = 0.0; tmpChannK  = 0.0
+          !
+          !=====||___WHQ___||=====!
+
           if(routeLinkNetcdf) then
 
              call read_route_link_netcdf(                                &
@@ -9247,6 +9266,16 @@ if(nlst(did)%compound_channel) then
 else
    print*, "compound_channel is FALSE in hydro.namelist."
    Tw = 0.0  !force top width to 0.0, this deactivates the compound channel formulation.
+   !=====||___WHQ___||=====!
+   !
+   ! Tw_CC and n_CC are never read in this branch, so they must be forced too.
+   ! Leaving them alone exposes whatever the (uninitialised) allocation held:
+   ! a NaN there makes the "TwCC .gt. 0.0" test in SUBMUSKINGCUNGE raise
+   ! FE_INVALID and abort the run under -ffpe-trap=invalid.
+   Tw_CC = 0.0
+   n_CC  = 0.0
+   !
+   !=====||___WHQ___||=====!
 end if
 
 
@@ -10781,7 +10810,18 @@ end subroutine output_chrt2
 
       integer(kind=int64) tmpBuf(GNLINKSL)
 
-      tmpSize = size(TO_NODE,1)
+      !=====||___WHQ___||=====!
+      !
+      ! mpi_test BUGFIX: the code below fills OUTLAKEID up to (1:NLINKSL), so sizing
+      ! this allocation from size(TO_NODE,1) alone (which follows NLINKS, the gridded
+      ! channel cell count) overran the allocation at NP>=4, where NLINKSL grows past
+      ! NLINKS -- a heap buffer overrun. Take NLINKSL into account as well.
+      !
+      !tmpSize = size(TO_NODE,1)    !original
+      tmpSize = max(NLINKSL, size(TO_NODE,1), 1)
+      !
+      !=====||___WHQ___||=====!
+
       allocate(OUTLAKEID(tmpSize))
 
       allocate (gto(GNLINKSL))

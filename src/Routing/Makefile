@@ -102,6 +102,11 @@ endif
 
 module_UDMAP.o: ../Data_Rec/module_namelist.o ../Data_Rec/module_RT_data.o
 
+# mpi_test BUILD FIX: add the missing dependency. module_diversions.F90 uses
+# module_diversions_timeslice, but that relation was never declared here, so the
+# build failed with "Cannot open module file 'module_diversions_timeslice.mod'".
+# Diversions/module_diversions.o: Diversions/module_diversions_timeslice.o
+
 ifneq ($(WRF_HYDRO_NUDGING),-DWRF_HYDRO_NUDGING)
 module_channel_routing.o: module_UDMAP.o \
 			  Diversions/module_diversions.o

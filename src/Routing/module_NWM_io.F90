@@ -291,6 +291,28 @@ subroutine output_chrt_NWM(domainId)
             allocate(g_qloss(gsize))
             allocate(g_qlossOut(gsize))
          end if
+         !=====||___WHQ___||=====!
+         !
+         ! These are allocated without initialization, and several of them are
+         ! only ever filled when UDMP_OPT==1: g_qSfcLatRunoff, g_qBucket,
+         ! g_qBtmVertRunoff, g_accSfcLatRunoff, g_accBucket. With UDMP_OPT=0 they
+         ! keep whatever was in the heap page, the reorder loop below copies that
+         ! into the matching *Out arrays, and it ends up in varOutReal rows
+         ! 6, 7, 11, 12, 13. The masking WHERE further down reads the whole array,
+         ! so a signalling-NaN bit pattern raises IEEE_INVALID.
+         !
+         ! The symptom is independent of the number of MPI ranks and only appears
+         ! from the third output step onward: these arrays are allocated and freed
+         ! once per output step, and the first couple of allocations still land on
+         ! fresh zero-filled pages before the allocator starts recycling memory.
+         g_qSfcLatRunoff    = fileMeta%modelNdv
+         g_qBucket          = fileMeta%modelNdv
+         g_qBtmVertRunoff   = fileMeta%modelNdv
+         g_accSfcLatRunoff  = fileMeta%modelNdv
+         g_accBucket        = fileMeta%modelNdv
+         g_nudge            = fileMeta%modelNdv
+         !
+         !=====||___WHQ___||=====!
       else
          allocate(g_chlon(1))
          allocate(g_chlat(1))
@@ -336,6 +358,40 @@ subroutine output_chrt_NWM(domainId)
          end if
       endif
 
+      !=====||___WHQ___||=====!
+      !
+      ! [INVARIANT] The local arrays below are sized by NLINKS (the gridded
+      ! channel cell count), but under reach-based routing (channel_option 1,2)
+      ! they are gathered by ReachLS_write_io, which reads only the leading
+      ! NLINKSL (= aLinksl(my_id+1)) elements of its input
+      ! (module_mpp_ReachLS.F90, ReachLS_wReal). So this is safe only while
+      ! NLINKS >= NLINKSL.
+      !
+      ! That is guaranteed by the correction in module_RT.F90 rt_allocate:
+      !     if(UDMP_OPT==1 .or. channel_option==1 .or. channel_option==2) then
+      !        if(NLINKS < NLINKSL) NLINKS = NLINKSL
+      ! The correction really does fire: at NP=4 (GNLINKSL=8879 -> NLINKSL=2220)
+      ! there is a rank whose gridded channel cell count is below 2220.
+      ! If that correction is ever dropped, we would read past the end of the
+      ! arrays here, and the symptom would surface far from the cause -- as
+      ! corrupted output values or a heap abort inside free(). Fail loudly
+      ! instead of letting such a regression pass silently.
+      !
+      ! (Switching these bounds to NLINKSL was considered and rejected: this
+      !  block runs before the channel_option /= 3 branch below, so it also
+      !  serves gridded routing where NLINKS is the correct bound; and changing
+      !  only the allocate would be undone by F2003 reallocation on the
+      !  whole-array assignment that follows.)
+      if(nlst(domainId)%channel_option .ne. 3 .and. &
+         RT_DOMAIN(domainId)%NLINKS .lt. RT_DOMAIN(domainId)%NLINKSL) then
+         write(6,*) "FATAL: output_chrt_NWM: NLINKS < NLINKSL", &
+                    RT_DOMAIN(domainId)%NLINKS, RT_DOMAIN(domainId)%NLINKSL
+         call HYDRO_stop("output_chrt_NWM: NLINKS < NLINKSL "// &
+                         "(check that the NLINKS correction in module_RT.F90 is present)")
+      endif
+      !
+      !=====||___WHQ___||=====!
+      
       ! Allocate local streamflow and velocity arrays. We need to do a check to
       ! for lake_type 2. However, we cannot set the values in the global array
       ! to missing as this causes the model to crash.
@@ -496,6 +552,20 @@ subroutine output_chrt_NWM(domainId)
       allocate(chIndArray(gsize))
       allocate(g_linkidOut(gsize))
       allocate(g_outInd(gsize))
+      !=====||___WHQ___||=====!
+      !
+      ! Same hazard as the MPI branch above: g_qSfcLatRunoff, g_qBucket,
+      ! g_qBtmVertRunoff, g_accSfcLatRunoff and g_accBucket are never assigned on
+      ! this path either, so without this they feed uninitialized heap memory into
+      ! varOutReal rows 6, 7, 11, 12, 13. g_nudge is only set when nudging is on.
+      g_qSfcLatRunoff    = fileMeta%modelNdv
+      g_qBucket          = fileMeta%modelNdv
+      g_qBtmVertRunoff   = fileMeta%modelNdv
+      g_accSfcLatRunoff  = fileMeta%modelNdv
+      g_accBucket        = fileMeta%modelNdv
+      g_nudge            = fileMeta%modelNdv
+      !
+      !=====||___WHQ___||=====!
       g_chlon = RT_DOMAIN(domainId)%CHLON
       g_chlat = RT_DOMAIN(domainId)%CHLAT
       g_zelev = RT_DOMAIN(domainId)%ZELEV
@@ -716,6 +786,31 @@ subroutine output_chrt_NWM(domainId)
       allocate(varMetaReal(3,numPtsOut))
       allocate(varMetaInt(1,numPtsOut))
       allocate(varMetaInt8(1,numPtsOut))
+
+      !=====||___WHQ___||=====!
+      !
+      ! varOutReal is allocated without initialization, but not every row is
+      ! assigned below: the last row (qloss) is filled only when
+      ! channel_option==2 .and. channel_loss_option>0. With channel_loss_option=0
+      ! (the default) that row keeps whatever was left in the heap page it landed
+      ! on. The masking WHERE further down reads the whole array, so a
+      ! signalling-NaN bit pattern in that row raises IEEE_INVALID.
+      !
+      ! The symptom appears only from the third output step onward and is
+      ! independent of the number of MPI ranks: varOutReal is allocated and freed
+      ! once per output step, and the first couple of allocations still land on
+      ! fresh zero-filled pages before the allocator starts recycling memory.
+      !
+      ! Initializing to modelNdv makes the unused row take the same path as any
+      ! other missing value -- the WHERE below turns it into -9999.0.
+      !
+      ! Note this is not specific to the WHQ additions: the original code had the
+      ! same conditional last row (qloss was row 11 when numChVars was 11).
+      ! output_chanObs_NWM (1 row) and output_gw_NWM (4 rows) assign every row,
+      ! so they do not need this.
+      varOutReal = fileMeta%modelNdv
+      !
+      !=====||___WHQ___||=====!
 
       varOutReal(1,:) = PACK(g_qlinkOut(:,1),g_outInd == 1)
       varOutReal(2,:) = PACK(g_nudgeOut,g_outInd == 1)
@@ -1453,7 +1548,12 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,itime,startdate,date,i
       fileMeta%outFlag(114) = 0
       fileMeta%outFlag(115) = 0
       fileMeta%outFlag(116) = 0
-      !fileMeta%numVars = numLdasVars_crocus_off ! 98  !=====||___WHQ___||=====! ***CHECK*** commented out for WHQ water variables
+      !=====||___WHQ___||=====! ***CHECK*** 
+      !
+      !the following original code is commented out
+      !fileMeta%numVars = numLdasVars_crocus_off ! 98  
+      !
+      !=====||___WHQ___||=====! ***CHECK*** 
    end if
 
    ! call the GetModelConfigType function
@@ -2371,7 +2471,31 @@ subroutine output_rt_NWM(domainId,iGrid)
                   !=====||___WHQ___||=====!
                   !
                   else if(iTmp2 .eq. 6) then
-                     varRealTmp = RT_DOMAIN(domainId)%SO8LD_Vmax(iTmp,jTmp)
+                     ! mpi_test BUGFIX: SO8LD_Vmax is allocated on the
+                     ! land grid (ix,jx) (module_RT.F90 rt_allocate), but iTmp/jTmp here
+                     ! run over the routing grid (ixrt,jxrt), which is 1 cell larger in
+                     ! each dimension when a left/down MPI neighbor exists. Reading it
+                     ! directly with (iTmp,jTmp) ran off the end of the (ix,jx) array.
+                     ! Map through the same land<->routing grid halo offset as q_sogw
+                     ! (module_GW_baseflow.F90 simp_gw_buck) and fall back to the fill
+                     ! value for the halo cell that has no land-grid counterpart.
+                     !
+                     ! varRealTmp = RT_DOMAIN(domainId)%SO8LD_Vmax(iTmp,jTmp)   !original
+                     block
+                        integer :: so8_io, so8_jo, so8_i, so8_j
+                        so8_io = 1
+                        so8_jo = 1
+                        if (left_id .ge. 0) so8_io = 2
+                        if (down_id .ge. 0) so8_jo = 2
+                        so8_i = iTmp - so8_io + 1
+                        so8_j = jTmp - so8_jo + 1
+                        if (so8_i .ge. 1 .and. so8_i .le. RT_DOMAIN(domainId)%ix .and. &
+                            so8_j .ge. 1 .and. so8_j .le. RT_DOMAIN(domainId)%jx) then
+                           varRealTmp = RT_DOMAIN(domainId)%SO8LD_Vmax(so8_i,so8_j)
+                        else
+                           varRealTmp = fileMeta%fillReal(iTmp2)
+                        endif
+                     end block
                   else if(iTmp2 .eq. 7) then
                      varRealTmp = subbasinID(iTmp,jTmp)
                   else if(iTmp2 .eq. 8) then
@@ -2390,10 +2514,18 @@ subroutine output_rt_NWM(domainId,iGrid)
                   !if(varRealTmp .gt. fileMeta%validMaxDbl(iTmp2)) then
                   !   varRealTmp = fileMeta%fillReal(iTmp2)
                   !endif
-                  !if(varRealTmp .ne. varRealTmp) then  !original
-                  if(.not. ieee_is_finite(varRealTmp)) then    !=====||___WHQ___||=====!
+
+                  !=====||___WHQ___||=====!
+                  !
+                  !if(varRealTmp .ne. varRealTmp) then         !original
+                  !   varRealTmp = fileMeta%fillReal(iTmp2)
+                  !endif
+                  if(.not. ieee_is_finite(varRealTmp)) then
                      varRealTmp = fileMeta%fillReal(iTmp2)
                   endif
+                  !
+                  !=====||___WHQ___||=====!
+
                   ! If we are on time 0, make sure we don't need to fill in the
                   ! grid with NDV values.
                   if(minSinceSim .eq. 0 .and. fileMeta%timeZeroFlag(iTmp2) .eq. 0) then
@@ -5353,6 +5485,18 @@ subroutine output_gw_NWM(domainId,iGrid)
          allocate(g_basnsInd(1))
       endif
 
+      !=====||___WHQ___||=====!
+      !
+      ! g_qloss_gwsubbas is allocated without initialization and is only filled
+      ! when bucket_loss==1. With bucket_loss=0 (the default here) it keeps
+      ! whatever was in the heap page, goes straight into varOutReal row 3, and
+      ! the masking WHERE below reads it -- a signalling-NaN bit pattern there
+      ! raises IEEE_INVALID. The other three rows are safe: gw_write_io_real
+      ! zeroes its output buffer before filling it.
+      g_qloss_gwsubbas = fileMeta%modelNdv
+      !
+      !=====||___WHQ___||=====!
+
       if(nlst(domainId)%UDMP_OPT .eq. 1) then
          ! This is ONLY for NWM configuration with NHD channel routing. NCAR
          ! reach-based routing has the GW physics initialized the same as with
@@ -5389,6 +5533,13 @@ subroutine output_gw_NWM(domainId,iGrid)
       allocate(g_qloss_gwsubbas(rt_domain(domainId)%gnumbasns))
       allocate(g_z_gwsubbas(rt_domain(domainId)%gnumbasns))
       allocate(g_basnsInd(rt_domain(domainId)%gnumbasns))
+
+      !=====||___WHQ___||=====!
+      ! Same hazard as the MPI branch above: g_qloss_gwsubbas is only assigned
+      ! when bucket_loss==1, so without this it feeds uninitialized heap memory
+      ! into varOutReal row 3.
+      g_qloss_gwsubbas = fileMeta%modelNdv
+      !=====||___WHQ___||=====!
 
       !ADCHANGE: Note units conversion from m3 to m3/s for UPDMP=1 only
       g_qin_gwsubbas = rt_domain(domainId)%qin_gwsubbas/nlst(domainId)%DT

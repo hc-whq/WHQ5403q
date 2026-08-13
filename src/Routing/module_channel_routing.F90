@@ -495,7 +495,15 @@ use module_RT_data, only: rt_domain  !! JLM: this is only used in a c3 paramter 
 
         Twl = Bw + (2.0*z*h)
         R = (h*(Bw + Twl) / 2.0) / (Bw + 2.0*(((Twl - Bw) / 2.0)**2.0 + h**2)**0.5)
-        vel =  (1./n) * (R **(2.0/3.0)) * sqrt(So)  ! average velocity in m/s
+        !=====||___WHQ___||=====!
+        ! NaN guard for velocity calculation
+        ! vel =  (1./n) * (R **(2.0/3.0)) * sqrt(So)  ! average velocity in m/s !original
+        if (n .gt. 0.0 .and. R .gt. 0.0 .and. So .gt. 0.0) then
+           vel = (1./n) * (R **(2.0/3.0)) * sqrt(So)
+        else
+           vel = 0.0
+        endif
+        !=====||___WHQ___||=====!
         depth = h
 
       else   ! no flow to route
@@ -598,7 +606,19 @@ END SUBROUTINE SUBMUSKINGCUNGE
         REAL, INTENT(IN), DIMENSION(NLINKS)       :: ChannK  !--Channel Infiltration
         REAL                                      :: Km, X
         REAL , INTENT(INOUT), DIMENSION(:,:) :: QLINK
-        REAL ,  DIMENSION(NLINKS,2) :: tmpQLINK
+
+        !=====||___WHQ___||=====!
+        !
+        ! mpi_test BUGFIX: the reach loop below (do k=1,NLINKSL) accesses tmpQLINK(k,2)
+        ! all the way up to NLINKSL, so sizing it from NLINKS (the gridded channel cell
+        ! count) alone runs past the end of the array at NP>=4, where NLINKSL grows past
+        ! NLINKS (the same issue as the rt_allocate correction in module_RT.F90)
+        !
+        !REAL ,  DIMENSION(NLINKS,2) :: tmpQLINK      !original
+        REAL ,  DIMENSION(max(NLINKS,NLINKSL),2) :: tmpQLINK
+        !
+        !=====||___WHQ___||=====!
+
         REAL , INTENT(INOUT), DIMENSION(NLINKS)   :: HLINK
         REAL, dimension(NLINKS), intent(inout)    :: QLateral !--lateral flow
         REAL, INTENT(IN)                          :: DT    !-- model timestep

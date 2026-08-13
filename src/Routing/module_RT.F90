@@ -76,7 +76,22 @@ CONTAINS
 !     if( nlst_rt(did)%channel_option .eq. 1  .or. nlst_rt(did)%channel_option .eq. 2 ) then
 !         rt_domain(did)%NLINKS = rt_domain(did)%NLINKSL
 !     endif
-      if(nlst(did)%UDMP_OPT .eq. 1) then
+
+      !=====||___WHQ___||=====!
+      !
+      ! mpi_test BUGFIX: extend the NLINKS (gridded channel cell count) correction
+      ! beyond UDMP_OPT=1 to reach-based routing as a whole (channel_option=1,2).
+      ! Previously, once NP grew far enough that NLINKSL (the reach count) exceeded
+      ! NLINKS (NP>=4), the reach arrays stayed declared at the smaller NLINKS size
+      ! while NLINKSL elements were written into them, causing a heap buffer overrun
+      ! in nhdLakeMap_mpp and elsewhere.
+      !
+      !if(nlst(did)%UDMP_OPT .eq. 1) then             !original
+      if(nlst(did)%UDMP_OPT .eq. 1 .or. &
+         nlst(did)%channel_option .eq. 1 .or. &
+         nlst(did)%channel_option .eq. 2) then
+      !
+      !=====||___WHQ___||=====!
           if(rt_domain(did)%NLINKS .lt. rt_domain(did)%NLINKSL) then
               rt_domain(did)%NLINKS = rt_domain(did)%NLINKSL
           endif
@@ -367,6 +382,31 @@ CONTAINS
      allocate( rt_domain(did)%ChannK(nsizes) )
      allocate( rt_domain(did)%LAKEIDA(nsizes) )
      allocate( rt_domain(did)%LAKEIDX(nsizes) )
+
+     !=====||___WHQ___||=====!
+     !
+     ! initialize channel routing parameters to default values
+     rt_domain(did)%So      = 1.0e-4 
+     rt_domain(did)%Bw      = 1.0
+     rt_domain(did)%Tw      = 1.0
+     rt_domain(did)%Tw_CC   = 1.0
+     rt_domain(did)%MannN   = 0.035
+     rt_domain(did)%n_CC    = 0.035
+     rt_domain(did)%ChSSlp  = 1.0 
+     rt_domain(did)%CHANLEN = 1.0
+     rt_domain(did)%ChannK  = 0.0
+     rt_domain(did)%MUSK    = 3600.0
+     rt_domain(did)%MUSX    = 0.2
+     rt_domain(did)%ZELEV   = 0.0
+     rt_domain(did)%ORDER   = 1
+     rt_domain(did)%TYPEL   = 0
+     rt_domain(did)%LINKID  = -9999
+     rt_domain(did)%TO_NODE = -9999
+     rt_domain(did)%LAKEIDA = -9999
+     rt_domain(did)%LAKEIDX = -9999
+     rt_domain(did)%QLINK   = 0.0
+     !
+     !=====||___WHQ___||=====!
 
      if(NLAKES .gt. 0) then
 
