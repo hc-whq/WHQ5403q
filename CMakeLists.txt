@@ -212,8 +212,18 @@ if (CMAKE_Fortran_COMPILER_ID MATCHES "GNU.*")
         # harmless, so they are dropped; invalid, zero and overflow are kept
         # because those are the ones that indicate a real defect. Applied to
         # both build types so the reporting policy does not depend on -O level.
+        #
+        # Debug additionally traps that same set, so a Debug build aborts at the
+        # instruction that produced the exception instead of letting a NaN or an
+        # Inf propagate. Two rank-count dependent defects were found this way
+        # (uninitialised Tw_CC/n_CC in module_HYDRO_io, uninitialised
+        # FREVD/FREVI/FREGD/FREGI in module_sf_noahmplsm). Trapping all three is
+        # safe for this configuration: across 23 runs -- three 62-day runs and
+        # twenty 240-hour runs over NP=1..32 -- none of invalid, zero or
+        # overflow was ever signalled. Should that change, the abort is the
+        # point: it means something needs looking at.
         set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -ffpe-summary=invalid,zero,overflow")
-        set(CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -fbacktrace -ffpe-summary=invalid,zero,overflow")
+        set(CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -fbacktrace -ffpe-summary=invalid,zero,overflow -ffpe-trap=invalid,zero,overflow")
         #
         #=====||___WHQ___||=====#
 elseif (CMAKE_Fortran_COMPILER_ID MATCHES "Intel.*")
