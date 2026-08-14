@@ -1550,7 +1550,7 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,itime,startdate,date,i
       fileMeta%outFlag(116) = 0
       !=====||___WHQ___||=====! ***CHECK*** 
       !
-      !the following original code is commented out
+      !the following original code is commented out for outputting WHQ variables (117-130)
       !fileMeta%numVars = numLdasVars_crocus_off ! 98  
       !
       !=====||___WHQ___||=====! ***CHECK*** 

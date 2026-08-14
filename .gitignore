@@ -21,6 +21,11 @@ src/Land_models/Noah/user_build_options
 src/LandModel
 src/LandModel_cpl
 src/Land_models/NoahMP/MPP
+src/CMakeCache.txt
+src/CMakeFiles/
+src/src/
+src/cmake_install.cmake
+src/CTestTestfile.cmake
 build*/
 README.md
 /.idea

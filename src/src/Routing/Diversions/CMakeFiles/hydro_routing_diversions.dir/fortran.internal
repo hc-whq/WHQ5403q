@@ -1,4 +1,0 @@
-# The fortran modules provided by this target.
-provides
- module_channel_diversions.mod
- module_diversions_timeslice.mod

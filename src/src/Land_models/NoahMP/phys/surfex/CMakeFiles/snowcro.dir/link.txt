@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../../../../lib/libsnowcro.a CMakeFiles/snowcro.dir/module_snowcro.F.o
-/usr/bin/ranlib ../../../../../lib/libsnowcro.a

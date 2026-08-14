@@ -1,5 +1,0 @@
-# The fortran modules provided by this target.
-provides
- config_base.mod
- io_manager_base.mod
- orchestrator_base.mod

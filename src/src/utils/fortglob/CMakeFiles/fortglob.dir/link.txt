@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../../lib/libfortglob.a CMakeFiles/fortglob.dir/libfortglob.c.o CMakeFiles/fortglob.dir/fortglob.f90.o
-/usr/bin/ranlib ../../../lib/libfortglob.a

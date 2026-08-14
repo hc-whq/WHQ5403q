@@ -1,7 +1,0 @@
-# The fortran modules provided by this target.
-provides
- hashtable.mod
- module_cpl_land.mod
- module_mpp_gwbucket.mod
- module_mpp_land.mod
- module_mpp_reachls.mod
