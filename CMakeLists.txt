@@ -205,8 +205,17 @@ if (CMAKE_Fortran_COMPILER_ID MATCHES "GNU.*")
         if (CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 9)
                 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fallow-argument-mismatch")
         endif()
-        set(CMAKE_Fortran_FLAGS_RELEASE "-O2")
-        set(CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -fbacktrace")
+        #=====||___WHQ___||=====#
+        #
+        # -ffpe-summary limits the exception summary gfortran prints at STOP.
+        # underflow and denormal fire on every run of this model and are
+        # harmless, so they are dropped; invalid, zero and overflow are kept
+        # because those are the ones that indicate a real defect. Applied to
+        # both build types so the reporting policy does not depend on -O level.
+        set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -ffpe-summary=invalid,zero,overflow")
+        set(CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -fbacktrace -ffpe-summary=invalid,zero,overflow")
+        #
+        #=====||___WHQ___||=====#
 elseif (CMAKE_Fortran_COMPILER_ID MATCHES "Intel.*")
         # set compile flags for ifort
         message( "-- Using ifort")
