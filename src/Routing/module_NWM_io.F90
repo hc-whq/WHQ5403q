@@ -2480,7 +2480,7 @@ subroutine output_rt_NWM(domainId,iGrid)
                      ! (module_GW_baseflow.F90 simp_gw_buck) and fall back to the fill
                      ! value for the halo cell that has no land-grid counterpart.
                      !
-                     ! varRealTmp = RT_DOMAIN(domainId)%SO8LD_Vmax(iTmp,jTmp)   !original
+                     ! varRealTmp = RT_DOMAIN(domainId)%SO8LD_Vmax(iTmp,jTmp)   !original WHQ
                      block
                         integer :: so8_io, so8_jo, so8_i, so8_j
                         so8_io = 1
