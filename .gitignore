@@ -4,6 +4,7 @@
 *.mod
 *.lst
 *~
+*.swp
 Makefile.comm
 docs/_build/
 src/lib/*
