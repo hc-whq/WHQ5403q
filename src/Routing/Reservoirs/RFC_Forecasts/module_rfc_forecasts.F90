@@ -72,7 +72,12 @@ contains
 
         implicit none
         class(rfc_forecasts), intent(inout) :: this ! object being initialized
-        real,    intent(inout) :: water_elevation           ! meters AMSL
+        !=====||___WHQ___||=====!  !LAKEFIX
+        !
+        !real,    intent(inout) :: water_elevation           ! meters AMSL  !original
+        real(kind=8),    intent(inout) :: water_elevation    ! meters AMSL
+        !
+        !=====||___WHQ___||=====!  !LAKEFIX
         real,    intent(in)    :: lake_area      		    ! area of lake (km^2)
         real,    intent(in)    :: weir_elevation            ! bottom of weir elevation (meters AMSL)
         real,    intent(in)    :: weir_coeffecient          ! weir coefficient
@@ -252,7 +257,12 @@ contains
         real, intent(in)    :: previous_timestep_inflow ! cubic meters per second (cms)
         real, intent(in)    :: inflow                   ! cubic meters per second (cms)
         real, intent(in)    :: lateral_inflow           ! cubic meters per second (cms)
-        real, intent(inout) :: water_elevation          ! meters
+        !=====||___WHQ___||=====!  !LAKEFIX
+        !
+        !real, intent(inout) :: water_elevation          ! meters  !original
+        real(kind=8), intent(inout) :: water_elevation   ! meters
+        !
+        !=====||___WHQ___||=====!  !LAKEFIX
         real, intent(out)   :: outflow                  ! cubic meters per second (cms)
         real, intent(in)    :: routing_period           ! seconds
         integer, intent(out):: dynamic_reservoir_type   ! dynamic reservoir type sent to lake out files

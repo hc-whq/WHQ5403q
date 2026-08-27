@@ -169,8 +169,15 @@ module module_rt_inc
   REAL,  DIMENSION(50)     :: TOPWIDCC, NCC  !topwidth and mannings n of compund
 
   ! VARIABLES FOR  RESERVOIRS
-  REAL, allocatable, DIMENSION(:)      :: RESHT  !reservoir height
-!-- lake params
+  
+  !=====||___WHQ___||=====! LAKEFIX
+  !
+  !REAL, allocatable, DIMENSION(:)      :: RESHT  !reservoir height  !original
+  REAL(kind=8), allocatable, DIMENSION(:)      :: RESHT  !reservoir height
+  !
+  !=====||___WHQ___||=====! LAKEFIX
+
+  !-- lake params
   integer(kind=int64), allocatable, dimension(:) :: LAKEIDA     !id of lakes in routlink file
   integer(kind=int64), allocatable, dimension(:) :: LAKEIDM     !id of LAKES Modeled in LAKEPARM.nc or tbl
   REAL, allocatable, DIMENSION(:)    :: HRZAREA    !horizontal extent of lake, km^2

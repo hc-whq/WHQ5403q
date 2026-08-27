@@ -661,7 +661,13 @@ END SUBROUTINE SUBMUSKINGCUNGE
         REAL, INTENT(IN), DIMENSION(NLAKES)       :: ORIFICEA !-- orrifice area (m^2)
         REAL, INTENT(IN), DIMENSION(NLAKES)       :: ORIFICEE !-- orrifce elevation (m)
 
-        REAL, INTENT(INOUT), DIMENSION(NLAKES)    :: RESHT    !-- reservoir height (m)
+        !=====||___WHQ___||=====! LAKEFIX
+        !
+        !REAL, INTENT(INOUT), DIMENSION(NLAKES)    :: RESHT    !-- reservoir height (m)  !original
+        REAL(kind=8), INTENT(INOUT), DIMENSION(NLAKES) :: RESHT  !-- reservoir height (m)
+        !
+        !=====||___WHQ___||=====! LAKEFIX
+
         REAL*8,  DIMENSION(NLAKES)    :: QLAKEI8   !-- lake inflow (cms)
         REAL, INTENT(INOUT), DIMENSION(NLAKES)    :: QLAKEI   !-- lake inflow (cms)
         REAL,                DIMENSION(NLAKES)    :: QLAKEIP  !-- lake inflow previous timestep (cms)
@@ -704,7 +710,13 @@ END SUBROUTINE SUBMUSKINGCUNGE
         integer(kind=int64), dimension(:,:) ::  gtoNode
         integer  :: nToNodeInd
         real, dimension(nToNodeInd,2) :: gQLINK
-        real, allocatable,dimension(:) :: tmpQLAKEO, tmpQLAKEI, tmpRESHT  !=====||___WHQ___||=====!
+        !=====||___WHQ___||=====! LAKEFIX
+        !
+        !real, allocatable,dimension(:) :: tmpQLAKEO, tmpQLAKEI, tmpRESHT  !original
+        real, allocatable,dimension(:) :: tmpQLAKEO, tmpQLAKEI
+        real(kind=8), allocatable,dimension(:) :: tmpRESHT
+        !
+        !=====||___WHQ___||=====! LAKEFIX
 #else
         real(kind=8), dimension(NLINKS)                   :: LQLateral !--lateral flow
 #endif
@@ -889,21 +901,33 @@ END SUBROUTINE SUBMUSKINGCUNGE
                end do ! do m
 #endif
 
-                !=====||___WHQ___||=====!
-                !
-                ! new code to run reservoirs for NCAR-Reach configuration
                 if(TYPEL(k) == 1) then   !--link is a reservoir
                     l_idx = lake_lookup(k)
                     if (l_idx >= 0) then     !-- -999 if not a reservoir in the lookup table (belt-and-suspenders check)
-                        call rt_domain(did)%reservoirs(l_idx)%ptr%run(Qup, Quc, 0.0, &
+                        !=====||___WHQ___||=====!  !LAKEFIX
+                        !
+                        ! original code - QLateral(k) was not included in the reservoir routing!!!
+                        !call rt_domain(did)%reservoirs(l_idx)%ptr%run(Qup, Quc, 0.0, &
+                        !      RESHT(l_idx), QLINK(k,2), DTRT_CH, rt_domain(did)%final_reservoir_type(l_idx), &
+                        !      rt_domain(did)%reservoir_assimilated_value(l_idx), rt_domain(did)%reservoir_assimilated_source_file(l_idx))
+                        !QLAKEO(l_idx)  = QLINK(k,2)     !save outflow to lake
+                        !QLAKEI(l_idx)  = Quc            !save inflow to lake
+                        
+                        ! modification (1) - include lateral inflow to Qup and Quc
+                        call rt_domain(did)%reservoirs(l_idx)%ptr%run(Qup + QLateral(k), Quc + QLateral(k), 0.0, &
                               RESHT(l_idx), QLINK(k,2), DTRT_CH, rt_domain(did)%final_reservoir_type(l_idx), &
                               rt_domain(did)%reservoir_assimilated_value(l_idx), rt_domain(did)%reservoir_assimilated_source_file(l_idx))
-
-                        QLAKEO(l_idx)  = QLINK(k,2)     !save outflow to lake
-                        QLAKEI(l_idx)  = Quc            !save inflow to lake
+                        
+                        ! modification (2) - include lateral inflow to lake as a separate argument
+                        !call rt_domain(did)%reservoirs(l_idx)%ptr%run(Qup, Quc, QLateral(k), &
+                        !      RESHT(l_idx), QLINK(k,2), DTRT_CH, rt_domain(did)%final_reservoir_type(l_idx), &
+                        !      rt_domain(did)%reservoir_assimilated_value(l_idx), rt_domain(did)%reservoir_assimilated_source_file(l_idx))
+                        
+                        QLAKEO(l_idx)  = QLINK(k,2)           !save outflow to lake
+                        QLAKEI(l_idx)  = Quc + QLateral(k)    !save inflow to lake (including lateral inflow)
+                        !
+                        !=====||___WHQ___||=====!  !LAKEFIX
                     end if
-                !
-                !=====||___WHQ___||=====!
                 elseif (channel_option .eq. 1) then  !muskingum routing
                        Km = MUSK(k)
                        X = MUSX(k)
@@ -930,15 +954,17 @@ END SUBROUTINE SUBMUSKINGCUNGE
 !            endif !!! order(1) .ne. 1
          end do       !--k links
 
-!=====||___WHQ___||=====!
-!
 #ifdef MPP_LAND
-         call updateLake_seq(RESHT,nlakes,tmpRESHT)
+         !=====||___WHQ___||=====!  !LAKEFIX
+         !
+         !call updateLake_seq(RESHT,nlakes,tmpRESHT)  !original
+         call updateLake_seq8(RESHT,nlakes,tmpRESHT)  
+         !
+         !=====||___WHQ___||=====!  !LAKEFIX
          call updateLake_seq(QLAKEO,nlakes,tmpQLAKEO)
          call updateLake_seq(QLAKEI,nlakes,tmpQLAKEI)
 #endif
-!
-!=====||___WHQ___||=====!
+
 
 !yw check
 !        gQLINK = 0.0
@@ -952,9 +978,7 @@ END SUBROUTINE SUBMUSKINGCUNGE
 !        endif
 
           do k = 1, NLINKSL
-            !if(TYPEL(k) .ne. 1) then  !original
-            if(TYPEL(k) .ne. 2) then   !=====||___WHQ___||=====! Here lakes/reservoirs are excluded but
-                                       !links flowing into or out from lakes/reservoirs are included
+            if(TYPEL(k) .ne. 1) then
                QLINK(k,2) = tmpQLINK(k,2)
             endif
             QLINK(k,1) = QLINK(k,2)    !assing link flow of current to be previous for next time step
@@ -1345,7 +1369,12 @@ gwOption:   if(gwBaseSwCRT == 3) then
          ! TODO: Change updateLake_grid calls below to updated distributed reservoir
          !       objects and not arrays as currently implemented.
          call updateLake_grid(QLLAKE, nlakes,lake_index)
-         call updateLake_grid(RESHT,  nlakes,lake_index)
+         !=====||___WHQ___||=====! LAKEFIX
+         !
+         !call updateLake_grid(RESHT,  nlakes,lake_index)  !original
+         call updateLake_grid8(RESHT,  nlakes,lake_index)
+         !
+         !=====||___WHQ___||=====! LAKEFIX
          call updateLake_grid(QLAKEO, nlakes,lake_index)
          call updateLake_grid(QLAKEI, nlakes,lake_index)
          call updateLake_grid(QLAKEIP,nlakes,lake_index)
@@ -1785,7 +1814,12 @@ end subroutine drive_CHANNEL
        !-- lake params
        integer(kind=int64), intent(IN), dimension(:)    :: LAKEIDM  !-- NHDPLUS lakeid for lakes to be modeled
 
-       real, intent(INOUT), dimension(:)    :: RESHT    !-- reservoir height (m)
+       !=====||___WHQ___||=====! LAKEFIX
+       !
+       !real, intent(INOUT), dimension(:)    :: RESHT    !-- reservoir height (m)  !original
+       real(kind=8), intent(INOUT), dimension(:) :: RESHT  !-- reservoir height (m)
+       !
+       !=====||___WHQ___||=====! LAKEFIX
        real, intent(INOUT), dimension(:)    :: QLAKEI   !-- lake inflow (cms)
        real,                dimension(NLAKES)    :: QLAKEIP  !-- lake inflow previous timestep (cms)
        real, intent(INOUT), dimension(NLAKES)    :: QLAKEO   !-- outflow from lake used in diffusion scheme
@@ -1833,7 +1867,13 @@ end subroutine drive_CHANNEL
 
        integer :: n, kk2, nt, nsteps  ! tmp
        real, intent(in), dimension(:) :: qout_gwsubbas
-       real, allocatable,dimension(:) :: tmpQLAKEO, tmpQLAKEI, tmpRESHT
+       !=====||___WHQ___||=====! LAKEFIX
+       !
+       !real, allocatable,dimension(:) :: tmpQLAKEO, tmpQLAKEI, tmpRESHT  !original
+       real, allocatable,dimension(:) :: tmpQLAKEO, tmpQLAKEI
+       real(kind=8), allocatable,dimension(:) :: tmpRESHT
+       !
+       !=====||___WHQ___||=====! LAKEFIX
        integer, allocatable, dimension(:) :: tmpFinalResType
        real, allocatable,dimension(:) :: tmpAssimilatedValue
        character(len=256), allocatable,dimension(:) :: tmpAssimilatedSourceFile
@@ -2139,7 +2179,12 @@ do nt = 1, nsteps
 #ifdef MPP_LAND
    call updateLake_seq(QLAKEO,nlakes,tmpQLAKEO)
    call updateLake_seq(QLAKEI,nlakes,tmpQLAKEI)
-   call updateLake_seq(RESHT,nlakes,tmpRESHT)
+   !=====||___WHQ___||=====! LAKEFIX
+   !
+   !call updateLake_seq(RESHT,nlakes,tmpRESHT)
+   call updateLake_seq8(RESHT,nlakes,tmpRESHT)
+   !
+   !=====||___WHQ___||=====! LAKEFIX
    call updateLake_seqInt(rt_domain(did)%final_reservoir_type, nlakes, tmpFinalResType)
    call updateLake_seq(rt_domain(did)%reservoir_assimilated_value, nlakes, tmpAssimilatedValue)
    !call updateLake_seq_char(rt_domain(did)%reservoir_assimilated_source_file, nlakes, tmpAssimilatedSourceFile)

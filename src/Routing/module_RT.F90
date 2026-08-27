@@ -6,7 +6,8 @@ MODULE module_Routing
    use MODULE_mpp_ReachLS, only: ReachLS_ini, getlocalindx,  getToInd
    USE module_mpp_land, only : left_id, up_id, right_id, down_id, mpp_land_com_integer, &
                                mpp_land_bcast_int, mpp_land_bcast_int1, &
-                               updateLake_seq
+                               updateLake_seq, &
+                               updateLake_seq8  !=====||___WHQ___||=====! LAKEFIX
    use module_mpp_GWBUCKET, only : collectSizeInd
 #else
    !yw use module_HYDRO_io, only: read_routedim, read_routing_old, read_chrouting,read_simp_gw
@@ -790,7 +791,12 @@ subroutine LandRT_ini(did)
   integer, allocatable, dimension(:) :: tmp_int
   real, allocatable, dimension(:) :: tmp_real
   integer, allocatable, dimension(:) :: buf
-  real, allocatable, dimension(:) :: tmpRESHT
+  !=====||___WHQ___||=====! LAKEFIX
+  !
+  !real, allocatable, dimension(:) :: tmpRESHT  !original
+  real(kind=8), allocatable, dimension(:) :: tmpRESHT
+  !
+  !=====||___WHQ___||=====! LAKEFIX
   integer :: new_start_i, new_start_j, new_end_i, new_end_j
 
 #ifdef OUTPUT_CHAN_CONN
@@ -1649,7 +1655,12 @@ subroutine LandRT_ini(did)
 #endif
 
 #ifdef MPP_LAND
-        call updateLake_seq(rt_domain(did)%RESHT, rt_domain(did)%NLAKES,tmpRESHT)
+        !=====||___WHQ___||=====! LAKEFIX
+        !
+        !call updateLake_seq(rt_domain(did)%RESHT, rt_domain(did)%NLAKES,tmpRESHT)  !original
+        call updateLake_seq8(rt_domain(did)%RESHT, rt_domain(did)%NLAKES,tmpRESHT)
+        !
+        !=====||___WHQ___||=====! LAKEFIX
         if(my_id .eq. io_id) then
            if(allocated(tmpRESHT)) deallocate(tmpRESHT)
         endif

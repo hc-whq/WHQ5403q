@@ -6123,12 +6123,28 @@ if(nlst(did)%SUBRTSWCRT  .eq. 1 .or. &
 !#endif
 !                  )
 
-
-      call w_rst_crt_nc1_lake(ncid,rt_domain(did)%nlakes,rt_domain(did)%resht,"resht" &
+      !=====||___WHQ___||=====! LAKEFIX
+      !
+      !--- original
+      !call w_rst_crt_nc1_lake(ncid,rt_domain(did)%nlakes,rt_domain(did)%resht,"resht" &
+! #ifdef MPP_LAND
+!            ,rt_domain(did)%lake_index  &
+! #endif
+!            )
+      !--- original
+      
+      block
+        real, allocatable, dimension(:) :: hc_tmp_resht
+        allocate(hc_tmp_resht(rt_domain(did)%nlakes))
+        hc_tmp_resht = real(rt_domain(did)%resht)
+        call w_rst_crt_nc1_lake(ncid,rt_domain(did)%nlakes,hc_tmp_resht,"resht" &
 #ifdef MPP_LAND
-           ,rt_domain(did)%lake_index  &
+             ,rt_domain(did)%lake_index  &
 #endif
-           )
+             )
+        deallocate(hc_tmp_resht)
+      end block
+      !=====||___WHQ___||=====! LAKEFIX
 
       call w_rst_crt_nc1_lake(ncid,rt_domain(did)%nlakes,rt_domain(did)%qlakeo,"qlakeo" &
 #ifdef MPP_LAND
@@ -6833,7 +6849,19 @@ if(nlst(did)%SUBRTSWCRT  .eq. 1 .or. &
       endif
 
       if(rt_domain(did)%NLAKES .gt. 0) then
-         call read_rst_crt_nc(ncid,rt_domain(did)%RESHT,rt_domain(did)%NLAKES,"resht")
+         !=====||___WHQ___||=====! LAKEFIX
+         !
+         !call read_rst_crt_nc(ncid,rt_domain(did)%RESHT,rt_domain(did)%NLAKES,"resht")  !original
+         block
+           real, allocatable, dimension(:) :: hc_tmp_resht
+           allocate(hc_tmp_resht(rt_domain(did)%NLAKES))
+           hc_tmp_resht = real(rt_domain(did)%RESHT)
+           call read_rst_crt_nc(ncid,hc_tmp_resht,rt_domain(did)%NLAKES,"resht")
+           rt_domain(did)%RESHT = real(hc_tmp_resht, kind=8)
+           deallocate(hc_tmp_resht)
+         end block
+         !
+         !=====||___WHQ___||=====! LAKEFIX
          call read_rst_crt_nc(ncid,rt_domain(did)%QLAKEO,rt_domain(did)%NLAKES,"qlakeo")
          call read_rst_crt_nc(ncid,rt_domain(did)%QLAKEI,rt_domain(did)%NLAKES,"qlakei")
       endif

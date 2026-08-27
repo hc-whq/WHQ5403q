@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/viventus/WHQ/src/WHQ5402
+CMAKE_SOURCE_DIR = /home/viventus/WHQ/src/WHQ5402mpi
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/viventus/WHQ/src/WHQ5402/src
+CMAKE_BINARY_DIR = /home/viventus/WHQ/src/WHQ5402mpi/src
 
 # Utility rule file for croton-reach_lakes.
 
@@ -67,7 +67,7 @@ include tests/ctests/CMakeFiles/croton-reach_lakes.dir/compiler_depend.make
 include tests/ctests/CMakeFiles/croton-reach_lakes.dir/progress.make
 
 tests/ctests/CMakeFiles/croton-reach_lakes:
-	cd /home/viventus/WHQ/src/WHQ5402/src/tests/ctests && bash /home/viventus/WHQ/src/WHQ5402/tests/ctests/setup_cmake_testcase.sh reach_lakes /home/viventus/WHQ/src/WHQ5402/src
+	cd /home/viventus/WHQ/src/WHQ5402mpi/src/tests/ctests && bash /home/viventus/WHQ/src/WHQ5402mpi/tests/ctests/setup_cmake_testcase.sh reach_lakes /home/viventus/WHQ/src/WHQ5402mpi/src
 
 croton-reach_lakes: tests/ctests/CMakeFiles/croton-reach_lakes
 croton-reach_lakes: tests/ctests/CMakeFiles/croton-reach_lakes.dir/build.make
@@ -78,10 +78,10 @@ tests/ctests/CMakeFiles/croton-reach_lakes.dir/build: croton-reach_lakes
 .PHONY : tests/ctests/CMakeFiles/croton-reach_lakes.dir/build
 
 tests/ctests/CMakeFiles/croton-reach_lakes.dir/clean:
-	cd /home/viventus/WHQ/src/WHQ5402/src/tests/ctests && $(CMAKE_COMMAND) -P CMakeFiles/croton-reach_lakes.dir/cmake_clean.cmake
+	cd /home/viventus/WHQ/src/WHQ5402mpi/src/tests/ctests && $(CMAKE_COMMAND) -P CMakeFiles/croton-reach_lakes.dir/cmake_clean.cmake
 .PHONY : tests/ctests/CMakeFiles/croton-reach_lakes.dir/clean
 
 tests/ctests/CMakeFiles/croton-reach_lakes.dir/depend:
-	cd /home/viventus/WHQ/src/WHQ5402/src && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/viventus/WHQ/src/WHQ5402 /home/viventus/WHQ/src/WHQ5402/tests/ctests /home/viventus/WHQ/src/WHQ5402/src /home/viventus/WHQ/src/WHQ5402/src/tests/ctests /home/viventus/WHQ/src/WHQ5402/src/tests/ctests/CMakeFiles/croton-reach_lakes.dir/DependInfo.cmake "--color=$(COLOR)"
+	cd /home/viventus/WHQ/src/WHQ5402mpi/src && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/viventus/WHQ/src/WHQ5402mpi /home/viventus/WHQ/src/WHQ5402mpi/tests/ctests /home/viventus/WHQ/src/WHQ5402mpi/src /home/viventus/WHQ/src/WHQ5402mpi/src/tests/ctests /home/viventus/WHQ/src/WHQ5402mpi/src/tests/ctests/CMakeFiles/croton-reach_lakes.dir/DependInfo.cmake "--color=$(COLOR)"
 .PHONY : tests/ctests/CMakeFiles/croton-reach_lakes.dir/depend
 

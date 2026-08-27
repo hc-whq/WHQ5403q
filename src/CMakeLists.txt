@@ -137,6 +137,14 @@ if (HYDRO_LSM MATCHES "NoahMP")
         set(BASH_CP_HRLDAS_NML "if [[ ! -f ${CMAKE_BINARY_DIR}/Run/namelist.hrldas ]]\; then cp ${PROJECT_SOURCE_DIR}/src/template/NoahMP/namelist.hrldas ${CMAKE_BINARY_DIR}/Run \; fi\;")
         set(BASH_CP_HYDRO_NML "if [[ ! -f ${CMAKE_BINARY_DIR}/Run/hydro.namelist ]]\; then cp ${PROJECT_SOURCE_DIR}/src/template/HYDRO/hydro.namelist ${CMAKE_BINARY_DIR}/Run \; fi\;")
 
+        # named copy of the executable, e.g. <workspace-folder-name>[_debug].exe
+        get_filename_component(WORKSPACE_FOLDER_NAME ${PROJECT_SOURCE_DIR} NAME)
+        if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+                set(NAMED_EXE_SUFFIX "_debug")
+        else()
+                set(NAMED_EXE_SUFFIX "")
+        endif()
+
         add_custom_command(TARGET wrfhydro.exe POST_BUILD
                 COMMAND mkdir -p ${CMAKE_BINARY_DIR}/Run
                 COMMAND cp ${PROJECT_SOURCE_DIR}/tests/ctests/run_dir_makefile.mk ${CMAKE_BINARY_DIR}/Run/Makefile
@@ -152,6 +160,7 @@ if (HYDRO_LSM MATCHES "NoahMP")
                 COMMAND rm -f ${CMAKE_BINARY_DIR}/Run/wrf_hydro_NoahMP.exe
                 COMMAND cp ${PROJECT_BINARY_DIR}/src/wrfhydro.exe ${CMAKE_BINARY_DIR}/Run/wrf_hydro_NoahMP.exe
                 COMMAND ln -s wrf_hydro_NoahMP.exe ${CMAKE_BINARY_DIR}/Run/wrf_hydro.exe
+                COMMAND cp ${CMAKE_BINARY_DIR}/Run/wrf_hydro_NoahMP.exe ${CMAKE_BINARY_DIR}/Run/${WORKSPACE_FOLDER_NAME}${NAMED_EXE_SUFFIX}.exe
                 COMMAND rm ${PROJECT_BINARY_DIR}/src/wrfhydro.exe
         )
 

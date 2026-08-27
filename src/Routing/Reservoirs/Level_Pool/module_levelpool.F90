@@ -71,7 +71,12 @@ contains
 
         implicit none
         class(levelpool), intent(inout) :: this ! object being initialized
-        real, intent(inout) :: water_elevation           ! meters AMSL
+        !=====||___WHQ___||=====!  !LAKEFIX
+        !
+        !real, intent(inout) :: water_elevation          ! meters AMSL  !original
+        real(kind=8), intent(inout) :: water_elevation   ! meters AMSL
+        !
+        !=====||___WHQ___||=====!  !LAKEFIX
         real, intent(in)    :: lake_area                 ! area of lake (km^2)
         real, intent(in)    :: weir_elevation            ! bottom of weir elevation (meters AMSL)
         real, intent(in)    :: weir_coeffecient          ! weir coefficient
@@ -199,7 +204,12 @@ contains
         real, intent(in)    :: previous_timestep_inflow ! cubic meters per second (cms)
         real, intent(in)    :: inflow                   ! cubic meters per second (cms)
         real, intent(in)    :: lateral_inflow           ! cubic meters per second (cms)
-        real, intent(inout) :: water_elevation          ! meters
+        !=====||___WHQ___||=====!  !LAKEFIX
+        !
+        !real, intent(inout) :: water_elevation         ! meters  !original
+        real(kind=8), intent(inout) :: water_elevation  ! meters 
+        !
+        !=====||___WHQ___||=====!  !LAKEFIX
         real, intent(out)   :: outflow                  ! cubic meters per second (cms)
         real, intent(in)    :: routing_period           ! seconds
         integer, intent(out):: dynamic_reservoir_type   ! dynamic reservoir type sent to lake out files
@@ -314,7 +324,12 @@ contains
         !! ----------------------------  argument variables
         !! All elevations should be relative to a common base (often belev(k))
 
-        real, intent(INOUT) :: H       ! water elevation height (m)
+        !=====||___WHQ___||=====!  !LAKEFIX
+        !
+        !real, intent(INOUT) :: H          ! water elevation height (m)  !original
+        real(kind=8), intent(INOUT) :: H   ! water elevation height (m)
+        !
+        !=====||___WHQ___||=====!  !LAKEFIX
         real, intent(IN)    :: dt      ! routing period [s]
         real, intent(IN)    :: qi0     ! inflow at previous timestep (cms)
         real, intent(IN)    :: qi1     ! inflow at current timestep (cms)
@@ -353,15 +368,30 @@ contains
         !
         !=====||___WHQ___||=====!
 
-        real    :: Htmp                ! Temporary assign of incoming lake el. (m)
+        !=====||___WHQ___||=====!  !LAKEFIX
+        !
+        !--- original
+        !real    :: Htmp                ! Temporary assign of incoming lake el. (m)
+        !!! ----------------------------  local variables
+        !real :: sap                    ! local surface area values
+        !real :: discharge              ! storage discharge m^3/s
+        !real :: tmp1, tmp2
+        !real :: dh, dh1, dh2, dh3      ! Depth in weir, and height function for 3 order RK
+        !real :: It, Itdt_3, Itdt_2_3   ! inflow hydrographs
+        !real :: maxWeirDepth           !maximum capacity of weir
+        !----- original
 
+        real(kind=8)    :: Htmp                ! Temporary assign of incoming lake el. (m)
         !! ----------------------------  local variables
-        real :: sap                    ! local surface area values
-        real :: discharge              ! storage discharge m^3/s
-        real :: tmp1, tmp2
-        real :: dh, dh1, dh2, dh3      ! Depth in weir, and height function for 3 order RK
-        real :: It, Itdt_3, Itdt_2_3   ! inflow hydrographs
-        real :: maxWeirDepth           !maximum capacity of weir
+        real(kind=8) :: sap                    ! local surface area values
+        real(kind=8) :: discharge              ! storage discharge m^3/s
+        real(kind=8) :: tmp1, tmp2
+        real(kind=8) :: dh, dh1, dh2, dh3      ! Depth in weir, and height function for 3 order RK
+        real(kind=8) :: It, Itdt_3, Itdt_2_3   ! inflow hydrographs
+        real(kind=8) :: maxWeirDepth           !maximum capacity of weir
+        !
+        !=====||___WHQ___||=====!  !LAKEFIX
+
         !real :: hdiff_vol, qdiff_vol   ! water balance check variables
         !! ----------------------------  subroutine body: from chow, mad mays. pg. 252
         !! -- determine from inflow hydrograph
@@ -392,7 +422,12 @@ contains
 
            !-- determine Q(dh) from elevation-discharge relationship
            !-- and dh1
-           dh = max(H - we, 0.)  !=====||___WHQ___||=====!
+           !=====||___WHQ___||=====! 
+           !
+           !dh = H - we  !original
+           dh = max(H - we, 0.)
+           !
+           !=====||___WHQ___||=====! 
            if (dh > maxWeirDepth) then
               dh = maxWeirDepth
            endif
@@ -402,7 +437,12 @@ contains
 
            !determine the discharge based on current height
            if(H > maxh) then
-             discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  !=====||___WHQ___||=====!
+             !=====||___WHQ___||=====! 
+             !
+             !discharge =  tmp1 + tmp2 + (wc* (wl*dl) * (H-maxh)**(3./2.)) !overtop  !original
+             discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  
+             !
+             !=====||___WHQ___||=====! 
            else if (dh > 0.0 ) then              !! orifice and weir discharge
              discharge = tmp1 + tmp2
            else if ( H > oe ) then     !! only orifice flow
@@ -419,7 +459,12 @@ contains
 
            !-- determine Q(H + dh1/3) from elevation-discharge relationship
            !-- dh2
-           dh = max(H+dh1/3. - we, 0.)  !=====||___WHQ___||=====!
+           !=====||___WHQ___||=====!
+           !
+           !dh = (H+dh1/3) - we        !original
+           dh = max(H+dh1/3. - we, 0.)
+           !
+           !=====||___WHQ___||=====!
            if (dh > maxWeirDepth) then
               dh = maxWeirDepth
            endif
@@ -428,8 +473,13 @@ contains
            tmp2 = wc * wl * (dh ** (3./2.))
 
            !determine the discharge based on current height
-           if(H+dh1/3. > maxh) then
-             discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  !=====||___WHQ___||=====!
+           if(H > maxh) then
+             !=====||___WHQ___||=====!
+             !
+             !discharge =  tmp1 + tmp2 + (wc* (wl*dl) * (H-maxh)**(3./2.)) !overtop  !original
+             discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  
+             !
+             !=====||___WHQ___||=====!
            else if (dh > 0.0 ) then              !! orifice and weir discharge
              discharge = tmp1 + tmp2
            else if ( (H+dh1/3.) > oe ) then     !! only orifice flow,not full  !=====||___WHQ___||=====!
@@ -447,7 +497,12 @@ contains
 
            !-- determine Q(H + 2/3 dh2) from elevation-discharge relationship
            !-- dh3
-           dh = max(H + (0.667*dh2) - we, 0.)  !=====||___WHQ___||=====!
+           !=====||___WHQ___||=====!
+           !
+           !dh = (H + (0.667*dh2)) - we  !original
+           dh = max(H + (0.667*dh2) - we, 0.)  
+           !
+           !=====||___WHQ___||=====!
            if (dh > maxWeirDepth) then
               dh = maxWeirDepth
            endif
@@ -456,8 +511,13 @@ contains
            tmp2 = wc * wl * (dh ** (3./2.))
 
            !determine the discharge based on current height
-           if(H+0.667*dh2 > maxh) then  ! overtop condition, not good!  !=====||___WHQ___||=====!
-              discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  !=====||___WHQ___||=====!
+           if(H > maxh) then  ! overtop condition, not good!  
+              !=====||___WHQ___||=====!
+              !
+              !discharge =  tmp1 + tmp2 + (wc* (wl*dl) * (H-maxh)**(3./2.)) !overtop  !original
+              discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  
+              !
+              !=====||___WHQ___||=====!
            else if (dh > 0.0 ) then              !! orifice and weir discharge
               discharge = tmp1 + tmp2
            else if ( (H+dh2*0.667) > oe ) then     !! only orifice flow,not full
@@ -473,10 +533,16 @@ contains
            endif
 
            !-- determine dh and H
-           H = H + (0.25*dh1 + 0.75*dh3)  !=====||___WHQ___||=====!
+           dh = (dh1/4.) + (0.75*dh3)
+           H = H + dh
 
            !-- compute final discharge
-           dh = H - we
+           !=====||___WHQ___||=====!
+           !
+           !dh = H - we  !original
+           dh = max(H - we, 0.)
+           !
+           !=====||___WHQ___||=====!
            if (dh > maxWeirDepth) then
               dh = maxWeirDepth
            endif
@@ -486,7 +552,12 @@ contains
 
            !determine the discharge based on current height
            if(H > maxh) then  ! overtop condition, not good!
-              discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  !=====||___WHQ___||=====!
+              !=====||___WHQ___||=====!
+              !
+              !discharge =  tmp1 + tmp2 + (wc* (wl*dl) * (H-maxh)**(3./2.)) !overtop  !original
+              discharge =  tmp1 + tmp2 + (wc* dl * (H-maxh)**(3./2.)) !overtop  
+              !
+              !=====||___WHQ___||=====!
            else if (dh > 0.0 ) then              !! orifice and overtop discharge
               discharge = tmp1 + tmp2
            else if ( H > oe ) then     !! only orifice flow,not full

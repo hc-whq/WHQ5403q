@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_Fortran
-  "/home/viventus/WHQ/src/WHQ5402/tests/ctests/should_fail.f90" "/home/viventus/WHQ/src/WHQ5402/src/tests/ctests/CMakeFiles/fortran_ctest_should_fail.dir/should_fail.f90.o"
+  "/home/viventus/WHQ/src/WHQ5402mpi/tests/ctests/should_fail.f90" "/home/viventus/WHQ/src/WHQ5402mpi/src/tests/ctests/CMakeFiles/fortran_ctest_should_fail.dir/should_fail.f90.o"
   )
 set(CMAKE_Fortran_COMPILER_ID "GNU")
 set(CMAKE_Fortran_SUBMODULE_SEP "@")
@@ -16,7 +16,6 @@ set(CMAKE_Fortran_SUBMODULE_EXT ".smod")
 
 # Preprocessor definitions for this target.
 set(CMAKE_TARGET_DEFINITIONS_Fortran
-  "HYDRO_D"
   "MPP_LAND"
   "WRF_HYDRO"
   )
@@ -42,4 +41,4 @@ set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
   )
 
 # Fortran module output directory.
-set(CMAKE_Fortran_TARGET_MODULE_DIR "/home/viventus/WHQ/src/WHQ5402/src/mods")
+set(CMAKE_Fortran_TARGET_MODULE_DIR "/home/viventus/WHQ/src/WHQ5402mpi/src/mods")

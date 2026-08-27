@@ -468,9 +468,34 @@ contains
                             RT_DOMAIN(did)%LATLAKE,RT_DOMAIN(did)%LONLAKE, &
                             RT_DOMAIN(did)%ELEVLAKE,RT_DOMAIN(did)%QLAKEI, &
                             RT_DOMAIN(did)%QLAKEO, &
-                            RT_DOMAIN(did)%RESHT,nlst(did)%DT,Kt)
+                            !=====||___WHQ___||=====! LAKEFIX
+                            !
+                            !RT_DOMAIN(did)%RESHT,nlst(did)%DT,Kt)  !original
+                            real (RT_DOMAIN(did)%RESHT),nlst(did)%DT,Kt)
+                            !
+                            !=====||___WHQ___||=====! LAKEFIX
                     endif
                     if(nlst(did)%outlake .eq. 2) then
+                      !=====||___WHQ___||=====! LAKEFIX
+                      !
+!--- original
+! #ifdef MPP_LAND
+!                         call mpp_output_lakes2( RT_DOMAIN(did)%lake_index, &
+! #else
+!                             call output_lakes2(  &
+! #endif
+!                             nlst(did)%igrid, nlst(did)%split_output_count, &
+!                             RT_DOMAIN(did)%NLAKES, &
+!                             trim(nlst(did)%sincedate), trim(nlst(did)%olddate), &
+!                             RT_DOMAIN(did)%LATLAKE,RT_DOMAIN(did)%LONLAKE, &
+!                             RT_DOMAIN(did)%ELEVLAKE,RT_DOMAIN(did)%QLAKEI, &
+!                             RT_DOMAIN(did)%QLAKEO, &
+!                             RT_DOMAIN(did)%RESHT,nlst(did)%DT,Kt,RT_DOMAIN(did)%LAKEIDM)
+!--- original
+                      block
+                        real, allocatable, dimension(:) :: hc_tmp_resht
+                        allocate(hc_tmp_resht(RT_DOMAIN(did)%NLAKES))
+                        hc_tmp_resht = real(RT_DOMAIN(did)%RESHT)
 #ifdef MPP_LAND
                         call mpp_output_lakes2( RT_DOMAIN(did)%lake_index, &
 #else
@@ -482,7 +507,12 @@ contains
                             RT_DOMAIN(did)%LATLAKE,RT_DOMAIN(did)%LONLAKE, &
                             RT_DOMAIN(did)%ELEVLAKE,RT_DOMAIN(did)%QLAKEI, &
                             RT_DOMAIN(did)%QLAKEO, &
-                            RT_DOMAIN(did)%RESHT,nlst(did)%DT,Kt,RT_DOMAIN(did)%LAKEIDM)
+                            hc_tmp_resht,nlst(did)%DT,Kt,RT_DOMAIN(did)%LAKEIDM)
+                        RT_DOMAIN(did)%RESHT = real(hc_tmp_resht, kind=8)
+                        deallocate(hc_tmp_resht)
+                      end block
+                      !
+                      !=====||___WHQ___||=====! LAKEFIX
                     endif
 
                 endif ! end of check for io_form_outputs value

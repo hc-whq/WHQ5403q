@@ -2650,6 +2650,45 @@ contains
    end subroutine updateLake_seq
 
 
+   !=====||___WHQ___||=====! LAKEFIX
+   !
+   subroutine updateLake_seq8(in,nsize,in0)
+      implicit none
+
+      integer :: nsize
+      real(kind=8), dimension(:), intent(inout), asynchronous :: in
+      real(kind=8), dimension(:), intent(in) :: in0
+
+      real(kind=8), dimension(nsize) :: tmp
+      real(kind=8), dimension(:), allocatable, asynchronous :: prev
+      real(kind=8), dimension(:), allocatable :: adjustment
+      logical new
+      integer tag, i, status, ierr, k
+
+      if (nsize .le. 0) return
+
+      allocate(adjustment(nsize))
+      allocate(prev(nsize))
+
+      if (my_id == IO_id) prev = in0
+      call MPI_Bcast(prev, nsize, MPI_DOUBLE_PRECISION, IO_id, HYDRO_COMM_WORLD, ierr)
+
+      if (my_id == IO_id) then
+         adjustment = in
+      else
+         adjustment = in - prev
+      end if
+
+      call MPI_Allreduce(adjustment, in, nsize, MPI_DOUBLE_PRECISION, MPI_SUM, HYDRO_COMM_WORLD, ierr)  ! TODO: check ierr!
+
+      deallocate(adjustment)
+      deallocate(prev)
+
+   end subroutine updateLake_seq8
+   !
+   !=====||___WHQ___||=====! LAKEFIX
+
+
    subroutine updateLake_seq_char(in,nsize,in0)
       implicit none
       integer :: nsize
@@ -2716,6 +2755,45 @@ contains
 
    end subroutine updateLake_grid
 
+
+   !=====||___WHQ___||=====! LAKEFIX
+   !
+   subroutine updateLake_grid8(in,nsize,lake_index)
+      implicit none
+      integer :: nsize
+      real(kind=8), dimension(nsize) :: in
+      integer, dimension(nsize) :: lake_index
+      real(kind=8), dimension(nsize) :: tmp
+      integer tag, i, status, ierr, k
+      if(nsize .le. 0) return
+
+      if(my_id .ne. IO_id) then
+         tag = 29
+         call MPI_Send(in,nsize,MPI_DOUBLE_PRECISION, IO_id,     &
+            tag,HYDRO_COMM_WORLD,ierr)
+         tag = 30
+         call MPI_Send(lake_index,nsize,MPI_INTEGER, IO_id,     &
+            tag,HYDRO_COMM_WORLD,ierr)
+      else
+         do i = 0, numprocs - 1
+            if(i .ne. IO_id) then
+               tag = 29
+               call MPI_Recv(tmp,nsize,&
+                  MPI_DOUBLE_PRECISION,i,tag,HYDRO_COMM_WORLD,mpp_status,ierr)
+               tag = 30
+               call MPI_Recv(lake_index,nsize,&
+                  MPI_INTEGER,i,tag,HYDRO_COMM_WORLD,mpp_status,ierr)
+               do k = 1, nsize
+                  if(lake_index(k) .gt. 0) in(k) = tmp(k)
+               end do
+            end if
+         end do
+      end if
+      call mpp_land_bcast_real8_1d(in)
+
+   end subroutine updateLake_grid8
+   !
+   !=====||___WHQ___||=====! LAKEFIX
 
 !subroutine match1dLake:
 !global lake. Find the same lake and mark as flag
