@@ -4011,9 +4011,9 @@ contains
 
       dtbl = real(noah_lsm%noah_timestep)
 
-! #ifdef MPP_LAND
-!      if (my_id == io_id) then
-! #endif
+#ifdef MPP_LAND
+      if (my_id == io_id) then
+#endif
 
       if (len_trim(SedCNPmodel%config_paddy_file) > 0) then
          file_path = trim(SedCNPmodel%config_paddy_file)
@@ -4035,45 +4035,41 @@ contains
          num_lines = 0
       endif
 
-! #ifdef MPP_LAND
-!      endif
-!      call mpp_land_bcast_int1(num_lines)
-! #endif
+#ifdef MPP_LAND
+      endif
+      call mpp_land_bcast_int1(num_lines)
+#endif
 
       if (num_lines == 0) return
       allocate(file_content(num_lines))
 
-! #ifdef MPP_LAND
-!       if (my_id == io_id) then
-!          do i = 1, num_lines
-!             read(iunit, '(A)') file_content(i)
-!          enddo
-!          close(iunit)
-!       endif
-!       do i = 1, num_lines
-!          if (my_id == io_id) then
-!             temp_line = file_content(i)
-!          endif
-!          call mpp_land_bcast_char(len(temp_line), temp_line)
-!          file_content(i) = temp_line
-!       enddo
-! #else
+#ifdef MPP_LAND
+      if (my_id == io_id) then
+         do i = 1, num_lines
+            read(iunit, '(A)') file_content(i)
+         enddo
+         close(iunit)
+      endif
+      do i = 1, num_lines
+         call mpp_land_bcast_char(len(file_content(i)), file_content(i))
+      enddo
+#else
       do i = 1, num_lines
          read(iunit, '(A)') file_content(i)
       enddo
       close(iunit)
-! #endif
+#endif
 
 
       !Initialization
       str_date = ' '
-      Hbund0      = 0.30
-      Hspillway0  = 0.05
-      Tbund0      = 1.0
-      Wspillway0  = 1.0
-      OLWD_thr0   = 0.01
-      OLWD_std0   = 0.04
-      Qabs_max0   = 0.05
+      Hbund0      = 0.0
+      Hspillway0  = 0.0
+      Tbund0      = 0.0
+      Wspillway0  = 0.0
+      OLWD_thr0   = 0.0
+      OLWD_std0   = 0.0
+      Qabs_max0   = 0.0
       coef_pudd0  = 0.1
       paddy_all   = 0
       found_end   = .false.
@@ -4112,7 +4108,7 @@ contains
                DO ix_loop = ix_s, ix_e
                   DO jx_loop = jx_s, jx_e
                      if (IVGTYP(ix_loop,jx_loop) /= 7) cycle
-                     do itime = t0 + 1, ntime_paddy
+                     do itime = t0, ntime_paddy
                         Hbund_now_3D(ix_loop,jx_loop,itime)     = Hbund0
                         Hspillway_now_3D(ix_loop,jx_loop,itime) = Hspillway0
                         Tbund_now_3D(ix_loop,jx_loop,itime)     = Tbund0
@@ -4137,14 +4133,14 @@ contains
                endif
             endif
             t0 = 1
-            Hbund0     = 0.30
-            Hspillway0 = 0.05
-            Tbund0     = 1.0
-            Wspillway0 = 1.0
-            OLWD_thr0  = 0.01
-            OLWD_std0  = 0.04
-            Qabs_max0  = 0.05
-            coef_pudd0 = 0.01
+            Hbund0     = 0.0
+            Hspillway0 = 0.0
+            Tbund0     = 0.0
+            Wspillway0 = 0.0
+            OLWD_thr0  = 0.0
+            OLWD_std0  = 0.0
+            Qabs_max0  = 0.0
+            coef_pudd0 = 0.1
 
          elseif (trim(str_line) == 'END') then
             ! Finalize the current block.
@@ -4166,7 +4162,7 @@ contains
                DO ix_loop = ix_s, ix_e
                   DO jx_loop = jx_s, jx_e
                      if (IVGTYP(ix_loop,jx_loop) /= 7) cycle
-                     do itime = t0 + 1, ntime_paddy
+                     do itime = t0, ntime_paddy
                         Hbund_now_3D(ix_loop,jx_loop,itime)     = Hbund0
                         Hspillway_now_3D(ix_loop,jx_loop,itime) = Hspillway0
                         Tbund_now_3D(ix_loop,jx_loop,itime)     = Tbund0
@@ -4259,17 +4255,19 @@ contains
                    jx >= noah_lsm%ystart .and. jx <= noah_lsm%yend) then
                   local_ix = ix - noah_lsm%xstart + 1
                   local_jx = jx - noah_lsm%ystart + 1
-                  do itime = t0, t1
-                     if (itime > ntime_paddy) exit
-                     Hbund_now_3D(local_ix,local_jx,itime)     = Hbund0
-                     Hspillway_now_3D(local_ix,local_jx,itime) = Hspillway0
-                     Tbund_now_3D(local_ix,local_jx,itime)     = Tbund0
-                     Wspillway_now_3D(local_ix,local_jx,itime) = Wspillway0
-                     OLWD_thr_3D(local_ix,local_jx,itime)      = OLWD_thr0
-                     OLWD_std_3D(local_ix,local_jx,itime)      = OLWD_std0
-                     Qabs_max_3D(local_ix,local_jx,itime)      = Qabs_max0
-                     coef_pudd_3D(local_ix,local_jx,itime)     = coef_pudd0
-                  enddo
+                  if (IVGTYP(local_ix,local_jx) == 7) then
+                     do itime = t0, t1
+                        if (itime > ntime_paddy) exit
+                        Hbund_now_3D(local_ix,local_jx,itime)     = Hbund0
+                        Hspillway_now_3D(local_ix,local_jx,itime) = Hspillway0
+                        Tbund_now_3D(local_ix,local_jx,itime)     = Tbund0
+                        Wspillway_now_3D(local_ix,local_jx,itime) = Wspillway0
+                        OLWD_thr_3D(local_ix,local_jx,itime)      = OLWD_thr0
+                        OLWD_std_3D(local_ix,local_jx,itime)      = OLWD_std0
+                        Qabs_max_3D(local_ix,local_jx,itime)      = Qabs_max0
+                        coef_pudd_3D(local_ix,local_jx,itime)     = coef_pudd0
+                     enddo
+                  endif
 
                   ! Set new values at the current breakpoint t1
                   if (t1 < ntime_paddy) then
