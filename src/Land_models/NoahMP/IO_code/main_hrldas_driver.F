@@ -14,8 +14,14 @@ program noah_hrldas_driver
 #ifdef MPP_LAND
   use module_mpp_land, only: mpp_land_sync
 #endif
-  !use module_SedCNPmodel_driver
-  !use config_base, only: SedCNPmodel
+!=====||__WHQ5403q__||=====!
+!
+  use module_SedCNPmodel_driver
+  ! SedCNPmodel is already visible via module_SedCNPmodel_driver/orchestrator_base below;
+  ! a redundant direct "use config_base" here triggers a gfortran diamond-import
+  ! derived-type mismatch when combined with those.
+!
+!=====||__WHQ5403q__||=====!
 !
 !=====||___WHQ___||=====!
 
@@ -54,16 +60,20 @@ program noah_hrldas_driver
 !=====||___WHQ___||=====!
 !
    else
-!      call SedCNP_driver_ini(NTIME)
-!      call SedCNPmodel_surface_input()
+!=====||__WHQ5403q__||=====!
+!
+      call SedCNP_driver_ini(NTIME)
+      call SedCNPmodel_surface_input()
 
-! #ifdef WRF_HYDRO
-!       do ITIME = 1, NTIME
-! #else
-!       do ITIME = 0, NTIME
-! #endif
-!          call SedCNP_driver_exe(ITIME)
-!       end do
+#ifdef WRF_HYDRO
+      do ITIME = 1, NTIME
+#else
+      do ITIME = 0, NTIME
+#endif
+         call SedCNP_driver_exe(ITIME)
+      end do
+!
+!=====||__WHQ5403q__||=====!
    endif
 !
 !=====||___WHQ___||=====!

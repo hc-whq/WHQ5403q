@@ -1,0 +1,42 @@
+! ╔═════════════════════════════════════════════════════════════════════════════╗
+! ║                                저작권 공지                                  ║
+! ║                                                                             ║
+! ║                  저작권 © 2022-2024 (주)하이드로코어                        ║
+! ║                                                                             ║
+! ║ 저작권자인 (주)하이드로코어의 사전 서면 허가 없이 이 소프트웨어 및 소스     ║
+! ║ 코드를 어떤 형태로든 무단으로 사용, 수정, 배포하는 것은 엄격히 금지됩니다.  ║
+! ║                                                                             ║
+! ║ 이 소프트웨어는 "있는 그대로" 제공되며, 명시적이든 묵시적이든 상관없이      ║
+! ║ 상품성, 특정 목적에의 적합성 및 비침해에 대한 보증을 포함한 어떠한 형태의   ║
+! ║ 보증도 제공되지 않습니다. 어떠한 경우에도 저작권자는 계약, 불법 행위 또는   ║
+! ║ 기타 상황으로 인해 소프트웨어 또는 소프트웨어의 사용 또는 기타 거래와       ║
+! ║ 관련하여 발생하는 모든 클레임, 손해 또는 기타 책임에 대해 책임을 지지       ║
+! ║ 않습니다.                                                                   ║
+! ║                                                                             ║
+! ║ 저작권 침해가 발생할 경우, 저작권자는 법적 조치를 취할 수 있으며, 이를 통해 ║
+! ║ 발생하는 모든 비용(변호사 수임료 포함)은 침해자가 부담합니다.               ║
+! ║                                                                             ║
+! ╚═════════════════════════════════════════════════════════════════════════════╝
+! ╔═════════════════════════════════════════════════════════════════════════════╗
+! ║                             COPYRIGHT NOTICE                                ║
+! ║                                                                             ║
+! ║                   Copyright © 2022-2024 HYDROCORE LTD.                      ║
+! ║                                                                             ║
+! ║ Unauthorized use, modification, and distribution of this software and its   ║
+! ║ source code, in any form, is strictly prohibited without prior written      ║
+! ║ permission from the copyright holder HYDROCORE LTD.                         ║
+! ║                                                                             ║
+! ║ THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR  ║
+! ║ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,    ║
+! ║ FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL    ║
+! ║ THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,  ║
+! ║ WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, ║
+! ║ OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE      ║
+! ║ SOFTWARE.                                                                   ║
+! ║                                                                             ║
+! ║ In the event of copyright infringement, the copyright holder reserves the   ║
+! ║ right to take legal action, and the infringer will be responsible for all   ║
+! ║ costs incurred, including attorney's fees.                                  ║
+! ║                                                                             ║
+! ╚═════════════════════════════════════════════════════════════════════════════╝
+

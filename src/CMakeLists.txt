@@ -23,6 +23,11 @@ add_subdirectory("Routing/Diversions")
 add_subdirectory("Data_Rec")
 add_subdirectory("Routing")
 add_subdirectory("HYDRO_drv")
+#=====||__WHQ5403q__||=====!
+#
+add_subdirectory("SedCNPmodel")
+#
+#=====||__WHQ5403q__||=====!
 if(${PROJECT_NAME} STREQUAL "WRF")
         add_subdirectory("CPL/WRF_cpl")
 endif()
@@ -54,6 +59,17 @@ add_dependencies(hydro_routing
 
 add_dependencies(hydro_routing_reservoirs_hybrid hydro_routing_reservoirs_levelpool)
 add_dependencies(hydro_routing_overland hydro_mpp)
+
+#=====||__WHQ5403q__||=====!
+#
+add_dependencies(hydro_SedCNPmodel
+        hydro_utils
+        hydro_mpp
+        hydro_routing
+        hydro_orchestrator
+)
+#
+#=====||__WHQ5403q__||=====!
 
 # currently unused Routing/Groundwater directory
 # add_subdirectory("Routing/Groundwater")
@@ -115,6 +131,11 @@ if (HYDRO_LSM MATCHES "NoahMP")
                 hydro_routing_reservoirs_rfc
                 hydro_routing_reservoirs
                 hydro_driver
+                #=====||__WHQ5403q__||=====!
+                #
+                hydro_SedCNPmodel
+                #
+                #=====||__WHQ5403q__||=====!
                 noahmp_util
                 noahmp_phys
                 noahmp_data
