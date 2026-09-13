@@ -1983,7 +1983,19 @@ ENDIF   ! CROPTYPE == 0
      IF(IST ==1 ) THEN
        DO IZ = 1, parameters%NROOT
           IF(OPT_BTR == 1) then                  ! Noah
-            GX    = (SH2O(IZ)-parameters%SMCWLT(IZ)) / (parameters%SMCREF(IZ)-parameters%SMCWLT(IZ))
+            !=====||___WHQ___||=====!
+            !
+            ! SMCREF(IZ) can equal SMCWLT(IZ) for the water soil category (both 0
+            ! in SOILPARM.TBL), which divides by zero here and raises FE_INVALID
+            ! under -ffpe-trap. No usable field-capacity range means no transpiration.
+            !GX    = (SH2O(IZ)-parameters%SMCWLT(IZ)) / (parameters%SMCREF(IZ)-parameters%SMCWLT(IZ))   !original
+            IF (parameters%SMCREF(IZ) > parameters%SMCWLT(IZ)) THEN
+              GX    = (SH2O(IZ)-parameters%SMCWLT(IZ)) / (parameters%SMCREF(IZ)-parameters%SMCWLT(IZ))
+            ELSE
+              GX    = 0.
+            END IF
+            !
+            !=====||___WHQ___||=====!
           END IF
           IF(OPT_BTR == 2) then                  ! CLM
             PSI   = MAX(PSIWLT,-parameters%PSISAT(IZ)*(MAX(0.01,SH2O(IZ))/parameters%SMCMAX(IZ))**(-parameters%BEXP(IZ)) )
@@ -2015,9 +2027,28 @@ ENDIF   ! CROPTYPE == 0
          ! RSURF based on Sakaguchi and Zeng, 2009
          ! taking the "residual water content" to be the wilting point,
          ! and correcting the exponent on the D term (typo in SZ09 ?)
-         L_RSURF = (-ZSOIL(1)) * ( exp ( (1.0 - MIN(1.0,SH2O(1)/parameters%SMCMAX(1))) ** parameters%RSURF_EXP ) - 1.0 ) / ( 2.71828 - 1.0 )
-         D_RSURF = 2.2E-5 * parameters%SMCMAX(1) * parameters%SMCMAX(1) * ( 1.0 - parameters%SMCWLT(1) / parameters%SMCMAX(1) ) ** (2.0+3.0/parameters%BEXP(1))
-         RSURF = L_RSURF / D_RSURF
+!=====||___WHQ___||=====!
+!
+! D_RSURF's exponent divides by parameters%BEXP(1), which is 0.0 for the
+! WATER row of SOILPARM.TBL - raises FE_INVALID/FE_DIVBYZERO under -ffpe-trap
+! whenever a water-classified grid cell (or any other degenerate soil entry)
+! reaches this point. RSURF=1 matches the existing IST==2 "avoid being
+! divided by 0" fallback a few lines above for the same physical situation.
+         !L_RSURF = (-ZSOIL(1)) * ( exp ( (1.0 - MIN(1.0,SH2O(1)/parameters%SMCMAX(1))) ** parameters%RSURF_EXP ) - 1.0 ) / ( 2.71828 - 1.0 )   !original
+         !D_RSURF = 2.2E-5 * parameters%SMCMAX(1) * parameters%SMCMAX(1) * ( 1.0 - parameters%SMCWLT(1) / parameters%SMCMAX(1) ) ** (2.0+3.0/parameters%BEXP(1))   !original
+         !RSURF = L_RSURF / D_RSURF   !original
+         IF (parameters%SMCMAX(1) > 0.0 .AND. parameters%BEXP(1) > 0.0) THEN
+           L_RSURF = (-ZSOIL(1)) * ( exp ( (1.0 - MIN(1.0,SH2O(1)/parameters%SMCMAX(1))) ** parameters%RSURF_EXP ) - 1.0 ) / ( 2.71828 - 1.0 )
+           D_RSURF = 2.2E-5 * parameters%SMCMAX(1) * parameters%SMCMAX(1) * ( 1.0 - parameters%SMCWLT(1) / parameters%SMCMAX(1) ) ** (2.0+3.0/parameters%BEXP(1))
+           RSURF = L_RSURF / D_RSURF
+         ELSE
+           write(*,'("WHQ DEBUG: degenerate soil at ILOC,JLOC=",2I6," VEGTYP=",I4," IST=",I2," BEXP1=",F10.4," SMCMAX1=",F10.4," SMCWLT1=",F10.4)') &
+                ILOC, JLOC, VEGTYP, IST, parameters%BEXP(1), parameters%SMCMAX(1), parameters%SMCWLT(1)
+           call flush(6)   !=====||___WHQ___||=====! ensure this reaches the terminal even if a later statement SIGFPEs before stdout would otherwise flush
+           RSURF = 1.
+         END IF
+!
+!=====||___WHQ___||=====!
        ELSEIF(OPT_RSF == 2) THEN
          RSURF = FSNO * 1. + (1.-FSNO)* EXP(8.25-4.225*BEVAP) !Sellers (1992) ! Older RSURF computations
        ELSEIF(OPT_RSF == 3) THEN
@@ -5470,9 +5501,21 @@ ENDIF   ! CROPTYPE == 0
       DO J = 1,NSOIL
          IF (OPT_FRZ == 1) THEN
             IF(STC(J) < TFRZ) THEN
+!=====||___WHQ___||=====!
+!
+! PSISAT(J) and BEXP(J) are both 0.0 for the WATER row of SOILPARM.TBL -
+! SMP/PSISAT(J) and the (-1./BEXP(J)) exponent both raise FE_INVALID/
+! FE_DIVBYZERO under -ffpe-trap for a water-classified grid cell/layer.
+! SUPERCOOL(J) is already initialized to 0.0 above; leave it there when the
+! soil parameters are degenerate rather than computing through them.
                SMP = HFUS*(TFRZ-STC(J))/(GRAV*STC(J))             !(m)
-               SUPERCOOL(J) = parameters%SMCMAX(J)*(SMP/parameters%PSISAT(J))**(-1./parameters%BEXP(J))
-               SUPERCOOL(J) = SUPERCOOL(J)*DZSNSO(J)*1000.        !(mm)
+               !SUPERCOOL(J) = parameters%SMCMAX(J)*(SMP/parameters%PSISAT(J))**(-1./parameters%BEXP(J))   !original
+               IF (parameters%BEXP(J) > 0.0 .AND. parameters%PSISAT(J) > 0.0) THEN
+                 SUPERCOOL(J) = parameters%SMCMAX(J)*(SMP/parameters%PSISAT(J))**(-1./parameters%BEXP(J))
+                 SUPERCOOL(J) = SUPERCOOL(J)*DZSNSO(J)*1000.        !(mm)
+               END IF
+!
+!=====||___WHQ___||=====!
             END IF
          END IF
          IF (OPT_FRZ == 2) THEN
@@ -6042,15 +6085,7 @@ ENDIF   ! CROPTYPE == 0
                             QIN    ,QDIS   )                           !out
           RUNSUB       = QDIS          !mm/s
 
-          !=====||___WHQ___||=====!
-          !
-          Percol(4) = QIN
-          IF (ispaddy == 1) THEN
-            RUNSUB = RUNSUB + (RUNSRF - RUNSRF_spillway)  ! bund overflow -> channel routing
-            RUNSRF = RUNSRF_spillway                      ! spillway stays as overland flow
-          END IF
-          !
-          !=====||___WHQ___||=====!
+          Percol(4) = QIN  !=====||___WHQ___||=====!
 
        END IF
 

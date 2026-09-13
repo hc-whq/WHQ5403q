@@ -1738,8 +1738,13 @@ contains
 !=====||___WHQ___||=====!
 !
 ! load point-source and abs/dis timeseries after restart/init outputs
-if ((nlst(did)%CHANRTSWCRT.eq.1 .or. nlst(did)%CHANRTSWCRT.eq.2) .and. &
-    rt_domain(did)%NLINKSL > 0)then 
+! NOTE: NLINKSL must NOT gate this call - Read_PS_QInputs/Read_ABSDIS_QInputs
+! perform collective MPI broadcasts (mpp_land_bcast_int1/char) on HYDRO_COMM_WORLD.
+! NLINKSL varies per rank, so gating on it here causes ranks with zero local
+! links to skip the broadcast while other ranks wait on it, deadlocking/aborting.
+!if ((nlst(did)%CHANRTSWCRT.eq.1 .or. nlst(did)%CHANRTSWCRT.eq.2) .and. &
+!    rt_domain(did)%NLINKSL > 0)then   !original
+if (nlst(did)%CHANRTSWCRT.eq.1 .or. nlst(did)%CHANRTSWCRT.eq.2) then
     call Read_PS_QInputs(did)
     call Read_ABSDIS_QInputs(did)
 endif
@@ -1961,6 +1966,7 @@ endif
        integer            :: i, num_lines, line_idx
        logical :: file_exists
        integer :: ierr_local
+       character(len=256) :: ch_pntsrc_path
 
        khour = noah_lsm%khour
 
@@ -1988,16 +1994,24 @@ endif
        if (my_id == IO_id) then
 #endif
 
-           if (len_trim(SedCNPmodel%CH_PNTSRC_file) > 0) then
-              inquire(file=trim(SedCNPmodel%CH_PNTSRC_file), exist=file_exists)
+           if (len_trim(nlst(did)%CH_PNTSRC_file) > 0) then
+              ch_pntsrc_path = nlst(did)%CH_PNTSRC_file
+           else if (len_trim(SedCNPmodel%CH_PNTSRC_file) > 0) then
+              ch_pntsrc_path = SedCNPmodel%CH_PNTSRC_file
+           else
+              ch_pntsrc_path = ""
+           end if
+           if (len_trim(ch_pntsrc_path) > 0) then
+              inquire(file=trim(ch_pntsrc_path), exist=file_exists)
               if (file_exists) then
-                 open (40520, file=trim(SedCNPmodel%CH_PNTSRC_file), status='unknown', iostat=ierr_local)
+                 open (40520, file=trim(ch_pntsrc_path), status='unknown', iostat=ierr_local)
               else
                  ierr_local = 1
               end if
            else
               ierr_local = 1
            end if
+
            if (ierr_local /= 0) then
               ! Fallback to default test file
               open (40520, file='./WHQIN/CH_PNTSRC_TEST.dat', status='unknown', iostat=ierr)
@@ -2191,6 +2205,7 @@ endif
        integer            :: i, num_lines, line_idx
        logical :: file_exists
        integer :: ierr_local
+       character(len=256) :: ch_absdis_path
 
        khour = noah_lsm%khour
 
@@ -2219,16 +2234,24 @@ endif
        if (my_id == IO_id) then
 #endif
 
-           if (len_trim(SedCNPmodel%CH_ABSDIS_file) > 0) then
-              inquire(file=trim(SedCNPmodel%CH_ABSDIS_file), exist=file_exists)
+           if (len_trim(nlst(did)%CH_ABSDIS_file) > 0) then
+              ch_absdis_path = nlst(did)%CH_ABSDIS_file
+           else if (len_trim(SedCNPmodel%CH_ABSDIS_file) > 0) then
+              ch_absdis_path = SedCNPmodel%CH_ABSDIS_file
+           else
+              ch_absdis_path = ""
+           end if
+           if (len_trim(ch_absdis_path) > 0) then
+              inquire(file=trim(ch_absdis_path), exist=file_exists)
               if (file_exists) then
-                 open (40521, file=trim(SedCNPmodel%CH_ABSDIS_file), status='unknown', iostat=ierr_local)
+                 open (40521, file=trim(ch_absdis_path), status='unknown', iostat=ierr_local)
               else
                  ierr_local = 1
               end if
            else
               ierr_local = 1
            end if
+
            if (ierr_local /= 0) then
               ! Fallback to default test file
               open (40521, file='./WHQIN/CH_ABSDIS_TEST.dat', status='unknown', iostat=ierr)

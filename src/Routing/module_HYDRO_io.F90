@@ -350,8 +350,15 @@ end subroutine get_file_globalatts
           !=====||___WHQ___||=====!
           !
           !out_buff = nint(xdum)  !original
-          where (xdum /= xdum .or. abs(xdum) > real(huge(1))) xdum = 14.0   ! soil category for 'water' 
+          where (xdum /= xdum .or. abs(xdum) > real(huge(1))) xdum = 14.0   ! soil category for 'water'
           out_buff = nint(xdum)
+          ! A soil category that rounds in-range for a REAL/INTEGER check (e.g. 0,
+          ! from a fill value that isn't NaN/huge) still isn't a valid 1..land_cat
+          ! index into SMCREF_TABLE/SMCWLT_TABLE/etc. Left unguarded, TRANSFER_MP_PARAMETERS
+          ! and BTRAN's root-zone loop in energy() divide by whatever garbage sits at
+          ! that table slot, raising FE_INVALID/FE_DIVBYZERO under -ffpe-trap.
+          where (out_buff < 1 .or. out_buff > land_cat) out_buff = 14   ! soil category for 'water'
+          !
           !=====||___WHQ___||=====!
      end subroutine get2d_lsm_soltyp
 

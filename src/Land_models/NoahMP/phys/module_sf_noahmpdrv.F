@@ -1914,8 +1914,16 @@ SUBROUTINE TRANSFER_MP_PARAMETERS(VEGTYPE,SOILTYPE,SLOPETYPE,SOILCOLOR,CROPTYPE,
     ENDIF
 
 ! adjust FRZK parameter to actual soil type: FRZK * FRZFACT
-
-    IF(SOILTYPE /= 14) then
+!=====||___WHQ___||=====!
+!
+! NOTE: guard on SMCREF(1) > 0.0 rather than only excluding the literal
+! "water" SOILTYPE (14): an unpopulated/out-of-range SOILTYPE index into
+! SMCREF_TABLE/SMCMAX_TABLE (sentinel or garbage value) divides by zero or
+! an invalid value here and raises FE_INVALID/FE_DIVBYZERO under -ffpe-trap.
+    !IF(SOILTYPE /= 14) then  !original
+    IF(SOILTYPE /= 14 .AND. parameters%SMCREF(1) > 0.0) then
+!
+!=====||___WHQ___||=====!
       FRZFACT = (parameters%SMCMAX(1) / parameters%SMCREF(1)) * (0.412 / 0.468)
       parameters%FRZX = FRZK * FRZFACT
     END IF

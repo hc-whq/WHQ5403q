@@ -26,6 +26,13 @@ src/CMakeFiles/
 src/src/
 src/cmake_install.cmake
 src/CTestTestfile.cmake
+src/Makefile
+src/tests/ctests/CMakeFiles/
+src/tests/ctests/Makefile
+src/tests/ctests/cmake_install.cmake
+src/tests/ctests/CTestTestfile.cmake
+src/tests/ctests/fortran_ctest_should_fail
+src/tests/ctests/fortran_ctest_should_not_fail
 build*/
 README.md
 /.idea

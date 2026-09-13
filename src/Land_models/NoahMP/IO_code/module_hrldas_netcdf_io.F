@@ -640,8 +640,20 @@ contains
     ! print*, 'xland(xstart,ystart) = ', xland(xstart,ystart)
 
     ! Get seaice (seaice)
+!=====||___WHQ___||=====!
+!
+! When SEAICE isn't in the domain file (e.g. an inland domain with no coastal
+! sea-ice data), get_2d_netcdf's NOT_FATAL path leaves `seaice` at its prior
+! value - the NetCDF fill-value sentinel (huge, positive), not 0. That makes
+! "WHERE(SEAICE > 0.0) XICE = 1.0" in the driver set XICE=1.0 domain-wide,
+! which disables the "SOILTYP==14 .AND. XICE==0." water-soil correction in
+! module_sf_noahmpdrv.F for every grid cell, letting the degenerate WATER row
+! (BEXP=SMCREF=SMCWLT=0 in SOILPARM.TBL) reach the physics and divide by zero.
     call get_2d_netcdf("SEAICE", ncid, seaice, units, xstart, xend, ystart, yend, NOT_FATAL, ierr)
+    if (ierr /= 0) seaice = 0.0   ! guard against missing SEAICE variable in wrfinput.nc
     ! print*, 'seaice(xstart,ystart) = ', seaice(xstart,ystart)
+!
+!=====||___WHQ___||=====!
 
     ! Get Terrain (avg)
     call get_2d_netcdf("HGT", ncid, terrain,   units, xstart, xend, ystart, yend, FATAL, ierr)
@@ -1677,7 +1689,11 @@ contains
 #endif
        endif
     enddo
-    print*
+!=====||___WHQ___||=====!
+! Unguarded debug leftover - printed an unconditional blank line twice per rank
+! (once per init_interp call) on every run, regardless of HYDRO_D.
+!    print*   !original
+!=====||___WHQ___||=====!
 
     do k = 1, nvar
        src_centerpoint(k) = 0.5*(layer_bottom(k)+layer_top(k))
