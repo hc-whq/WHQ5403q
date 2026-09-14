@@ -34,7 +34,6 @@ src/tests/ctests/CTestTestfile.cmake
 src/tests/ctests/fortran_ctest_should_fail
 src/tests/ctests/fortran_ctest_should_not_fail
 build*/
-README.md
 /.idea
 *__pycache__*
 *pytest_cache*
