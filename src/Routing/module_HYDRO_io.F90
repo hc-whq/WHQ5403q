@@ -352,6 +352,15 @@ end subroutine get_file_globalatts
           !out_buff = nint(xdum)  !original
           where (xdum /= xdum .or. abs(xdum) > real(huge(1))) xdum = 14.0   ! soil category for 'water'
           out_buff = nint(xdum)
+          ! land_cat is read by IO_id only (nf90_inquire_dimension above); on every other
+          ! rank it is uninitialised stack garbage. Without this broadcast the guard below
+          ! sets whole tiles to soil category 14 (and, via lsm_input, VEGTYP to iswater)
+          ! on ranks whose garbage is small, making results depend on the rank count.
+#ifdef MPP_LAND
+#ifndef PARALLELIO
+          call mpp_land_bcast_int1(land_cat)
+#endif
+#endif
           ! A soil category that rounds in-range for a REAL/INTEGER check (e.g. 0,
           ! from a fill value that isn't NaN/huge) still isn't a valid 1..land_cat
           ! index into SMCREF_TABLE/SMCWLT_TABLE/etc. Left unguarded, TRANSFER_MP_PARAMETERS
