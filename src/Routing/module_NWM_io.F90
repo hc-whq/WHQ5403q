@@ -2638,7 +2638,8 @@ end subroutine output_rt_NWM
 
 subroutine output_lakes_NWM(domainId,iGrid)
    use module_rt_data, only: rt_domain
-   use config_base, only: nlst
+   !use config_base, only: nlst           !original
+   use config_base, only: nlst, noah_lsm  !=====||___WHQ___||=====!
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use, intrinsic :: ieee_arithmetic   !=====||___WHQ___||=====!
@@ -2896,10 +2897,19 @@ subroutine output_lakes_NWM(domainId,iGrid)
    ! calculate total_valid_time
    fileMeta%totalValidTime = int(nlst(1)%khour * 60 / nlst(1)%out_dt)  ! # number of valid time (#of output files)
 
-   ! Compose output file name.
-   write(output_flnm, '(A12,".LAKEOUT_DOMAIN",I1)')nlst(domainId)%olddate(1:4)//&
+   ! Compose output file name with output directory path
+   !=====||___WHQ___||=====!
+   !
+   ! Updated to use user-specified OUTDIR from namelist.hrldas (similar to LDASOUT files)
+   !write(output_flnm, '(A12,".LAKEOUT_DOMAIN",I1)')nlst(domainId)%olddate(1:4)//&
+   !     nlst(domainId)%olddate(6:7)//nlst(domainId)%olddate(9:10)//&
+   !     nlst(domainId)%olddate(12:13)//nlst(domainId)%olddate(15:16),nlst(domainId)%igrid
+   write(output_flnm, '(A,"/",A12,".LAKEOUT_DOMAIN",I1)') trim(noah_lsm%outdir), &
+         nlst(domainId)%olddate(1:4)//&
          nlst(domainId)%olddate(6:7)//nlst(domainId)%olddate(9:10)//&
          nlst(domainId)%olddate(12:13)//nlst(domainId)%olddate(15:16),nlst(domainId)%igrid
+   !
+   !=====||___WHQ___||=====!
 
    ! Only run NetCDF library calls to output data if we are on the master
    ! processor.
@@ -3521,12 +3531,23 @@ subroutine output_chrtout_grd_NWM(domainId,iGrid)
    ! calculate total_valid_time
    fileMeta%totalValidTime = int(nlst(1)%khour * 60 / nlst(1)%out_dt)  ! # number of valid time (#of output files)
 
-   ! Create output filename
-   write(output_flnm, '(A12,".CHRTOUT_GRID",I1)') nlst(domainId)%olddate(1:4)//&
+   ! Create output filename with output directory path
+   !=====||___WHQ___||=====!
+   !
+   ! Updated to use user-specified OUTDIR from namelist.hrldas (similar to LDASOUT files)
+   !write(output_flnm, '(A12,".CHRTOUT_GRID",I1)') nlst(domainId)%olddate(1:4)//&
+   !                    nlst(domainId)%olddate(6:7)//&
+   !                    nlst(domainId)%olddate(9:10)//&
+   !                    nlst(domainId)%olddate(12:13)//&
+   !                    nlst(domainId)%olddate(15:16), igrid
+   write(output_flnm, '(A,"/",A12,".CHRTOUT_GRID",I1)') trim(noah_lsm%outdir), &
+                       nlst(domainId)%olddate(1:4)//&
                        nlst(domainId)%olddate(6:7)//&
                        nlst(domainId)%olddate(9:10)//&
                        nlst(domainId)%olddate(12:13)//&
                        nlst(domainId)%olddate(15:16), igrid
+   !
+   !=====||___WHQ___||=====!
 
    ! call the GetModelConfigType function
    modelConfigType = GetModelConfigType(nlst(1)%io_config_outputs)
@@ -4345,7 +4366,8 @@ end subroutine output_lsmOut_NWM
 ! User controllable options: None.
 subroutine output_frxstPts(domainId)
    use module_rt_data, only: rt_domain
-   use config_base, only: nlst
+   !use config_base, only: nlst           !original
+   use config_base, only: nlst, noah_lsm  !=====||___WHQ___||=====!
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
 #ifdef MPP_LAND
@@ -4537,8 +4559,14 @@ implicit none
       g_qlinkOut(:,2) = PACK(g_qlink(:,2),g_outInd == 1)
       g_linkidOut = PACK(g_linkid,g_outInd == 1)
 
-      ! Open the output file.
-      open (unit=55,file='frxst_pts_out.txt',status='unknown',position='append')
+      ! Open the output file in the user-specified OUTDIR from namelist.hrldas
+      ! (similar to LDASOUT files)
+      !=====||___WHQ___||=====!
+      !
+      !open (unit=55,file='frxst_pts_out.txt',status='unknown',position='append')   !original
+      open (unit=55,file=trim(noah_lsm%outdir)//'/frxst_pts_out.txt',status='unknown',position='append')
+      !
+      !=====||___WHQ___||=====!
 
       ! Loop through forecast points and write output.
       do iTmp=1,numPtsOut
@@ -4605,7 +4633,8 @@ end subroutine output_frxstPts
 ! User controllable options: None.
 subroutine output_chanObs_NWM(domainId)
    use module_rt_data, only: rt_domain
-   use config_base, only: nlst
+   !use config_base, only: nlst           !original
+   use config_base, only: nlst, noah_lsm  !=====||___WHQ___||=====!
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use, intrinsic :: ieee_arithmetic   !=====||___WHQ___||=====!
@@ -4758,14 +4787,29 @@ subroutine output_chanObs_NWM(domainId)
    ! Compose output file name.
    ! 0 means do not split = single output file
    single_output_file = nlst(domainId)%split_output_count .eq. 0
+   !=====||___WHQ___||=====!
+   !
+   ! Updated to use user-specified OUTDIR from namelist.hrldas (similar to LDASOUT files)
+   !if(single_output_file) then
+   !   write(output_flnm,'("CHANOBS_DOMAIN",I1,".nc")') nlst(domainId)%igrid
+   !else
+   !   write(output_flnm,'(A12,".CHANOBS_DOMAIN",I1)')nlst(domainId)%olddate(1:4)//&
+   !        nlst(domainId)%olddate(6:7)//nlst(domainId)%olddate(9:10)//&
+   !        nlst(domainId)%olddate(12:13)//nlst(domainId)%olddate(15:16),&
+   !        nlst(domainId)%igrid
+   !endif
    if(single_output_file) then
-      write(output_flnm,'("CHANOBS_DOMAIN",I1,".nc")') nlst(domainId)%igrid
+      write(output_flnm,'(A,"/","CHANOBS_DOMAIN",I1,".nc")') trim(noah_lsm%outdir), &
+           nlst(domainId)%igrid
    else
-      write(output_flnm,'(A12,".CHANOBS_DOMAIN",I1)')nlst(domainId)%olddate(1:4)//&
+      write(output_flnm,'(A,"/",A12,".CHANOBS_DOMAIN",I1)') trim(noah_lsm%outdir), &
+           nlst(domainId)%olddate(1:4)//&
            nlst(domainId)%olddate(6:7)//nlst(domainId)%olddate(9:10)//&
            nlst(domainId)%olddate(12:13)//nlst(domainId)%olddate(15:16),&
            nlst(domainId)%igrid
    endif
+   !
+   !=====||___WHQ___||=====!
 
    ! First step is to allocate a global array of index values. This "index"
    ! array will be used to subset after collection has taken place. Also,
