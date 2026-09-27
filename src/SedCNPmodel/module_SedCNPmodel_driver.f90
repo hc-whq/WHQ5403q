@@ -2010,7 +2010,7 @@ module module_SedCNPmodel_driver
             call UpdateCNP_Ch(ich)
          enddo  
 
-         !WHQ5403 NetCDF restart files every WHQ_RESTART_DT minutes and at the end of the simulation
+         !WHQ5403 NetCDF restart files every WHQ_RESTART_DT hours and at the end of the simulation
          ! (before SedCNPmodel_output, which advances dateSedCNP%olddate to the next time-step)
          if (CNP_Restart_Due(itime)) call Write_CNP_Restart()
 

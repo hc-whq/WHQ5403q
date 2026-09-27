@@ -34,7 +34,7 @@ The water quality model (SedCNP: sediment, C, N, P) runs after the hydro model
 
 **Restart (initial condition) files** (`whq.namelist`, NetCDF)
 - Output: `<WHQOUT_dir>/RESTART_<kind>.YYYYMMDDHH_DOMAIN1.nc` for kind = `SOC`, `SON`, `SOP`,
-  `GWC`, `GWN`, `GWP`, `CHC`, `CHN`, `CHP`, every `WHQ_RESTART_DT` minutes of model time
+  `GWC`, `GWN`, `GWP`, `CHC`, `CHN`, `CHP`, every `WHQ_RESTART_DT` hours of model time
   (<= 0 or omitted: only at the end of the simulation) and at the end of the simulation.
   YYYYMMDDHH is the valid time of the state (soil kg ha-1, groundwater and channels kg).
 - Input: `RESTART_FILENAME_SOC = './RESTART_WHQ/RESTART_SOC.2020083116_DOMAIN1.nc'` etc.; start the

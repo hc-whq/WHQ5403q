@@ -106,7 +106,7 @@ module config_base
                            CH_PNTSRC_file, CH_ABSDIS_file, CNPinputs_file, &
                            SOILPSF_file, CNPparams_file, config_paddy_file, &
                            SEDparams_file
-     !WHQ5403 SedCNP restart files (NetCDF): input file names and output interval [minutes]
+     !WHQ5403 SedCNP restart files (NetCDF): input file names and output interval [hours]
      character(len=256) :: restart_filename_soc = '', restart_filename_son = '', restart_filename_sop = '', &
                            restart_filename_gwc = '', restart_filename_gwn = '', restart_filename_gwp = '', &
                            restart_filename_chc = '', restart_filename_chn = '', restart_filename_chp = ''

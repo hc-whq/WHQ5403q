@@ -2,7 +2,7 @@
 !
 !> @brief SedCNP restart (initial condition) files in NetCDF.
 !! @details
-!! Write: every WHQ_RESTART_DT minutes of model time and at the end of the simulation, nine files
+!! Write: every WHQ_RESTART_DT hours of model time and at the end of the simulation, nine files
 !!   <WHQOUT_dir>/RESTART_<kind>.YYYYMMDDHH_DOMAIN1.nc, kind = SOC, SON, SOP (soil C/N/P),
 !!   GWC, GWN, GWP (groundwater), CHC, CHN, CHP (channels); YYYYMMDDHH is the valid time of the
 !!   state (end of the time-step). Units: soil kg ha-1, groundwater and channels kg.
@@ -36,7 +36,8 @@ module module_CNPrestart
       CNP_Restart_Due = (itime == domain%ntime_sedcnp)
       if (SedCNPmodel%whq_restart_dt > 0) then
          tsec = int(itime, 8) * int(SedCNPmodel%SedCNP_timestep, 8)
-         rsec = int(SedCNPmodel%whq_restart_dt, 8) * 60_8
+         !rsec = int(SedCNPmodel%whq_restart_dt, 8) * 60_8
+         rsec = int(SedCNPmodel%whq_restart_dt, 8) * 3600_8   ! WHQ_RESTART_DT [hours]
          if (mod(tsec, rsec) == 0) CNP_Restart_Due = .true.
       endif
    end function CNP_Restart_Due
