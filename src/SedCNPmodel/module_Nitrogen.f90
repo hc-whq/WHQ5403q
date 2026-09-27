@@ -2,11 +2,12 @@ module Nitrogen
 
    use CNPfunctions
    use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base, only: SedCNPmodel
    use SedCNP_config, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
    use CNPparams
 
    implicit none
@@ -783,7 +784,8 @@ contains
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       ! ================================================================
       ! I. INFLOWS
@@ -1464,7 +1466,8 @@ contains
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       Ch_NSC(ich)  = &
               (Ch_ALGN(ich,1)     - Ch_ALGN0(ich,1))     &

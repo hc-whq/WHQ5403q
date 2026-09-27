@@ -31,9 +31,9 @@ module module_SedCNPvariables
      integer              :: ntime_sedcnp !Y.Kwon20230316
      integer              :: nsl          !number of soil layers (default nsl = 4)
      !integer, allocatable :: sbid_cell(:,:) !subbasin ID (sbid) for grid cell (i,j)  !BK20231011
-     integer, allocatable :: gwid_ch(:)   !gw basin ID (gwid) for a given channel ID     !BK20231011 !BK20240726
-     integer, allocatable :: chid_i(:)   ! Grid i-index for each channel ID  !BK20250701
-     integer, allocatable :: chid_j(:)   ! Grid j-index for each channel ID  !BK20250701
+     integer, allocatable :: gwid_ch(:)   !gw basin ID (gwid) for a given channel index (ich)     !BK20231011 !BK20240726 !WHQ5403
+     integer, allocatable :: chid_i(:)   ! Grid i-index for each channel index (ich)  !BK20250701 !WHQ5403
+     integer, allocatable :: chid_j(:)   ! Grid j-index for each channel index (ich)  !BK20250701 !WHQ5403
      !integer, allocatable :: x_ch(:)      !x-coord. of the representative cell for a given channel  !BK20231029  !BK20240509
      !integer, allocatable :: y_ch(:)      !y-coord. of the representative cell for a given channel  !BK20231029  !BK20240509
      real(8)              :: areaxy       !cell area (m2)

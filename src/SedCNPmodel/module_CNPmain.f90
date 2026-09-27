@@ -5,13 +5,14 @@ module CNPmain
    use Nitrogen
    use Phosphorus
    use module_CNPupdates
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
    ! SedCNPmodel is already visible transitively via Carbon/Nitrogen/Phosphorus/
    ! module_CNPupdates above; a redundant direct "use config_base, only: SedCNPmodel"
    ! here triggers a gfortran diamond-import derived-type mismatch (namelist_rt_).
+   !use config_base, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
    !use NOAHMP_TABLES, only: ISWATER_TABLE  !BK20251208 Reverted
 
    implicit none
@@ -187,7 +188,8 @@ module CNPmain
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid  = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       !BK20260213
       SSA(1) = 2264.2   ! clay (diameter 1 um)

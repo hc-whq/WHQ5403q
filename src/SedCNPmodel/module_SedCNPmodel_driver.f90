@@ -26,12 +26,13 @@ module module_SedCNPmodel_driver
    subroutine SedCNP_driver_ini(NTIME_out)
 
       use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via ReadCNPini/module_SedCNP_in below; a redundant
       ! direct "use config_base" here triggers a gfortran diamond-import type mismatch.
+      !use config_base, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use CNPparams
       !use CNPvariables
       use ReadCNPini
@@ -643,11 +644,12 @@ module module_SedCNPmodel_driver
       use module_SedCNPvariables
       use module_SedCNP_in
       use module_SedCNP_out
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via module_SedCNP_in/module_SedCNP_out above.
+      !use config_base, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 
       implicit none
 
@@ -721,11 +723,12 @@ module module_SedCNPmodel_driver
                                           get3d_lsm_int, get_lsm_time, &  !BK20231005 !Y.Kwon20241125 
                                           get_lsm_dx                      !Y.Kwon(20250621)
       use module_SedCNP_out
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via module_SedCNP_out above.
+      !use config_base,              only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use Module_Date_utilities_rt, only: geth_newdate
 
       implicit none
@@ -945,7 +948,13 @@ module module_SedCNPmodel_driver
       
       !channel velocity [m/s]
       status = get1d_ch_real("velocity",SedCNP_hydro%chVa,domain%nch,trim(filename_CHRT))
-      !status = get1d_ch_real("velocity",chVa_in,domain%nch,trim(filename_CHRT)) !BK20250907    
+      !status = get1d_ch_real("velocity",chVa_in,domain%nch,trim(filename_CHRT)) !BK20250907
+
+      !WHQ5403 links inside lakes (lake_option > 0) have fill values (-9999) for streamflow and
+      ! velocity in CHRTOUT; treat them as no flow so that the fill values are neither used in the
+      ! channel calculations nor added to the upstream inflow of the downstream link
+      where (SedCNP_hydro%q_dsch < 0.0) SedCNP_hydro%q_dsch = 0.0
+      where (SedCNP_hydro%chVa < 0.0) SedCNP_hydro%chVa = 0.0
    
       ! !Qpnt [m3 s-1]
       ! status = get1d_ch_real("Qpnt",buf1,domain%nch,trim(filename_CHRT))  !BK20241028
@@ -994,11 +1003,12 @@ module module_SedCNPmodel_driver
    subroutine SedCNPmodel_output(itime)
 
       use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via module_SedCNP_out below.
+      !use config_base, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use Module_Date_utilities_rt, only: geth_newdate
       use module_SedCNP_out
 
@@ -1191,13 +1201,14 @@ module module_SedCNPmodel_driver
 
    subroutine SedCNP_driver_exe(itime)
 
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel is already visible via ReadCNPini/WriteCNPini/CNPmain/module_SedCNP_in
       ! below. A direct "use config_base" here, combined with any sibling module that
       ! itself uses config_base, triggers a gfortran diamond-import derived-type mismatch.
+      !use config_base,           only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use module_SedCNPvariables
       use module_overlandSed,    only: overlandSedTransport
       use module_channelSed,     only: channelSedTransport
@@ -1208,7 +1219,8 @@ module module_SedCNPmodel_driver
       !use CNPvariables
       use CNPparams      !Y.Kwon 20230312
       use module_AlloDeallocate
-      use ISO_FORTRAN_ENV, ONLY: ERROR_UNIT
+      use ISO_FORTRAN_ENV, ONLY: ERROR_UNIT, int64
+      use hashtable, only: hash_t   !WHQ5403 link ID -> channel index mapping
 #ifdef MPP_LAND
       use module_mpp_land, only: mpp_land_sync, my_id, io_id
 #endif
@@ -1282,36 +1294,70 @@ module module_SedCNPmodel_driver
                   endif
                end do
             end do
-
-            !--- BK20250701
-            ! create mapping from channel ID to a single, (firstly-identified) 'representative' grid 
-            ! coordinates (i,j) and groundwater basin ID (gwid). 
-            ! Initialize with -9999 to identify unmapped links later
-            domain%chid_i = -9999
-            domain%chid_j = -9999
-            domain%gwid_ch = -9999
-
-            do j = 1, domain%jxrt
-               do i = 1, domain%ixrt
-                  if(SedCNP_hydro%linkID_grid(i,j) >= 1) then 
-                     chid = SedCNP_hydro%linkID_grid(i,j)
-                     !--- BK20250701
-                     if ((chid > 0) .and. &
-                        (chid <= domain%nch) .and. &
-                        (domain%chid_i(chid) == -9999)) then
-                        domain%gwid_ch(chid) = SedCNP_hydro%gwbasin(i,j)
-                        domain%chid_i(chid) = i
-                        domain%chid_j(chid) = j
-                     endif
-                     !--- BK20250701
-                  endif
-               end do
-            end do
          endif
 
          !sediment + CNP; need water outputs
          !get water outputs
          call SedCNPmodel_hydro_input(itime)
+
+         if (itime == 1) then
+            !--- BK20250701
+            ! create mapping from channel index (ich) to a single, (firstly-identified) 'representative' grid
+            ! coordinates (i,j) and groundwater basin ID (gwid).
+            ! Initialize with -9999 to identify unmapped links later
+            !=====||__WHQ5403__||=====!
+            ! Link IDs in Route_Link.nc need not be contiguous (1..nch), so they cannot be used as
+            ! array indices. As in the hydro routing (module_RT.F90), grid LINKID values are converted
+            ! to the channel index (position in Route_Link.nc) via a hash table of link IDs.
+            ! Must follow SedCNPmodel_hydro_input, which reads SedCNP_hydro%linkID.
+            !=====||__WHQ5403__||=====!
+            domain%chid_i = -9999
+            domain%chid_j = -9999
+            domain%gwid_ch = -9999
+
+            !=====||__WHQ5403__||=====! original code (link ID used as array index; moved from before SedCNPmodel_hydro_input)
+            !do j = 1, domain%jxrt
+            !   do i = 1, domain%ixrt
+            !      if(SedCNP_hydro%linkID_grid(i,j) >= 1) then
+            !         chid = SedCNP_hydro%linkID_grid(i,j)
+            !         !--- BK20250701
+            !         if ((chid > 0) .and. &
+            !            (chid <= domain%nch) .and. &
+            !            (domain%chid_i(chid) == -9999)) then
+            !            domain%gwid_ch(chid) = SedCNP_hydro%gwbasin(i,j)
+            !            domain%chid_i(chid) = i
+            !            domain%chid_j(chid) = j
+            !         endif
+            !         !--- BK20250701
+            !      endif
+            !   end do
+            !end do
+            !=====||__WHQ5403__||=====!
+
+            block
+               type(hash_t) :: hash_table
+               integer(kind=int64) :: val
+               logical :: found
+
+               call hash_table%set_all_idx(int(SedCNP_hydro%linkID, int64), domain%nch)
+               do j = 1, domain%jxrt
+                  do i = 1, domain%ixrt
+                     if(SedCNP_hydro%linkID_grid(i,j) >= 1) then
+                        call hash_table%get(int(SedCNP_hydro%linkID_grid(i,j), int64), val, found)
+                        if (found) then
+                           ich = int(val)
+                           if (domain%chid_i(ich) == -9999) then
+                              domain%gwid_ch(ich) = SedCNP_hydro%gwbasin(i,j)
+                              domain%chid_i(ich) = i
+                              domain%chid_j(ich) = j
+                           endif
+                        endif
+                     endif
+                  end do
+               end do
+               call hash_table%clear()
+            end block
+         endif
          
          ! Calculate basin-wide averages once per timestep. This is called after
          ! hydro inputs are updated and before any CNP processing for the timestep.
@@ -1803,6 +1849,8 @@ module module_SedCNPmodel_driver
          !overland
          do i = 1,domain%ix
             do j = 1,domain%jx
+               !WHQ5403 skip cells without LSM outputs (fill value -9999 in LDASOUT, e.g. outside the domain)
+               if (SedCNP_hydro%vgtyp(i,j) < 0.0) cycle
                !overland sediment
                call overlandSedTransport(i,j)
                !Soil CNP
@@ -1827,7 +1875,8 @@ module module_SedCNPmodel_driver
             write (5110,'(A12,",",A12,",",A12)') 'ich','chid','gwid'
             do ich = 1, domain%nch
                chid = SedCNP_hydro%linkID(ich)
-               gwid = domain%gwid_ch(chid)
+               !gwid = domain%gwid_ch(chid)
+               gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
                write (5110,'(I12,",",I12,",",I12)') ich,chid,gwid
             enddo
             close (5110)

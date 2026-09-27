@@ -1,4 +1,4 @@
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
 module SedCNP_config
    ! Single choke point through which every SedCNPmodel source file reaches
@@ -13,4 +13,4 @@ module SedCNP_config
    implicit none
 end module SedCNP_config
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!

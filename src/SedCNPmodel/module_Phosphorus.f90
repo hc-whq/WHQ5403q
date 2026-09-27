@@ -2,11 +2,12 @@ module Phosphorus
 
    use CNPfunctions
    use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base,           only: SedCNPmodel
    use SedCNP_config,         only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
    use CNPparams
 
    implicit none
@@ -262,10 +263,15 @@ module Phosphorus
             So_PIPSsurf(i,j) = 0.0
             do ips = 1, nps
                !BK20260213 bug fixed
-               dPIPAdmix(ips) = So_PIPA_init * (Dmix / DSOIL(isl)) * & 
+               if (dSSA(st) > 0.0) then  !WHQ5403 all-zero SOILPSF row (e.g. BEDROCK) -> no particulate inorganic P
+               dPIPAdmix(ips) = So_PIPA_init * (Dmix / DSOIL(isl)) * &
                   (SSA(ips) * overSed%SOILPSF(st,ips) / dSSA(st))
-               dPIPSdmix(ips) = So_PIPS_init * (Dmix / DSOIL(isl)) * & 
+               dPIPSdmix(ips) = So_PIPS_init * (Dmix / DSOIL(isl)) * &
                   (SSA(ips) * overSed%SOILPSF(st,ips) / dSSA(st))
+               else
+               dPIPAdmix(ips) = 0.0
+               dPIPSdmix(ips) = 0.0
+               endif
 
                if (overSed%Ssurf(ips,i,j) < 1.e-20 .or. &
                    overSed%Ssurf(ips,i,j) /= overSed%Ssurf(ips,i,j)) then
@@ -908,7 +914,8 @@ module Phosphorus
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       ! ========================================================================
       ! I. INFLOWS
@@ -1644,7 +1651,8 @@ module Phosphorus
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       Ch_PSC(ich) = &
               (Ch_ALGP(ich,1)     - Ch_ALGP0(ich,1))    &

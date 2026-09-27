@@ -1,11 +1,12 @@
 module module_channelSed
 
    use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base,            only: SedCNPmodel
    use SedCNP_config,          only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 
    real(8)               :: Gs = 2.65  !specific gravity of sediment 
    real(8)               :: g = 9.8    !gravitational acceleration [m/s2]
@@ -176,7 +177,8 @@ module module_channelSed
 
       dt = real(SedCNPmodel%SedCNP_timestep)   !BK20231016
       chid = SedCNP_hydro%linkID(ich)         !BK20231029
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       !initialisation
       channelSed%Solch0(ips,ich) = 0.  !BK20250925

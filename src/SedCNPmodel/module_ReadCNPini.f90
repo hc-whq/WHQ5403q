@@ -5,11 +5,12 @@
 module ReadCNPini
 
    use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base,           only: SedCNPmodel
    use SedCNP_config,         only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
    use CNPparams
 
    contains

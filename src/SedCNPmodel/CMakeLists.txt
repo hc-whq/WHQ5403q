@@ -1,11 +1,11 @@
 cmake_minimum_required (VERSION 2.8)
 
 add_library(hydro_SedCNPmodel STATIC
-#=====||__WHQ5403q__||=====!
+#=====||__WHQ5403__||=====!
 #
 	module_SedCNP_config.f90
 #
-#=====||__WHQ5403q__||=====!
+#=====||__WHQ5403__||=====!
 	module_SedCNPvariables.f90
 	module_AlloDeallocate.f90
 	module_overlandSed.f90
