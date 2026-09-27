@@ -57,12 +57,14 @@ module module_SedCNPmodel_driver
       khour = SedCNPmodel%SedCNP_khour
 
       if ((khour < 0) .and. (SedCNPmodel%SedCNP_kday < 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("FATAL ERROR: In module_SedCNPmodel_driver SedCNP_driver_ini() - "// &
                "Namelist error: Either KHOUR or KDAY must be defined.")')
          call hydro_stop("FATAL ERROR: In SedCNP_driver_ini() - KHOUR or KDAY must be defined.")
       else if (( khour < 0 ) .and. (SedCNPmodel%SedCNP_kday > 0)) then
          khour = SedCNPmodel%SedCNP_kday * 24
       else if ((khour > 0) .and. (SedCNPmodel%SedCNP_kday > 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("WARNING: In SedCNP_driver_ini() - KHOUR and KDAY both defined. Using KHOUR.")')
       endif
       N_TIME = khour*3600./nint(dts)
@@ -82,6 +84,7 @@ module module_SedCNPmodel_driver
       call get_global_iswater(trim(filename_ixjxnsl), domain%ISWATER) !BK20251208
       !If failed (still default -999), default to 16 and warn
       if (domain%ISWATER == -999) then
+         call progress_clear()   !WHQ5403
          print*, "WARNING: ISWATER not found in input file, using default 16"
          domain%ISWATER = 16
       endif
@@ -706,10 +709,12 @@ module module_SedCNPmodel_driver
       ! this flip, the gw basins and stream pixels were overlaid on the mirrored LSM cells.
       if (is_north_up(trim(filename_subbasinID))) then
          SedCNP_hydro%subbasinID = SedCNP_hydro%subbasinID(:, domain%jxrt:1:-1)
+         call progress_clear()   !WHQ5403
          write(6,*) 'INFO: SedCNP: ', trim(filename_subbasinID), ' is north-up; flipped to the model grid'
       endif
       if (is_north_up(trim(geo_finegrid_flnm))) then
          SedCNP_hydro%linkID_grid = SedCNP_hydro%linkID_grid(:, domain%jxrt:1:-1)
+         call progress_clear()   !WHQ5403
          write(6,*) 'INFO: SedCNP: ', trim(geo_finegrid_flnm), ' is north-up; flipped to the model grid'
       endif
       !=====||__WHQ5403__||=====!
@@ -1065,12 +1070,14 @@ module module_SedCNPmodel_driver
 
       ! --- Check if the output directory is specified
       if (len_trim(sedCNP_outdir) == 0) then
+         call progress_clear()   !WHQ5403
          write(*,*) 'FATAL ERROR: WHQOUT_dir is not specified in the hydro.namelist.'
          call hydro_stop('FATAL ERROR: WHQOUT_dir not specified.')
       endif
 
       call system('mkdir -p '//trim(sedCNP_outdir), status=mkdir_status)
       if (mkdir_status /= 0) then
+         call progress_clear()   !WHQ5403
          write(*,*) 'FATAL ERROR: Could not create output directory: ', trim(sedCNP_outdir)
          call hydro_stop('FATAL ERROR: Could not create output directory.')
       endif
@@ -1316,6 +1323,7 @@ module module_SedCNPmodel_driver
          !will be developed later
          !stop "FATAL ERROR: SedCNP_option = 1 does not work in the current version"
          if (my_id .eq. io_id) then  !BK20250803
+            call progress_clear()   !WHQ5403
             write(ERROR_UNIT,*) "WARNING: SedCNP_option = 1 is not yet implemented. Skipping."
          endif
          return
@@ -1324,6 +1332,7 @@ module module_SedCNPmodel_driver
          !will be developed later
          !stop "FATAL ERROR: SedCNP_option = 2 does not work in the current version"
          if (my_id .eq. io_id) then  !BK20250803
+            call progress_clear()   !WHQ5403
             write(ERROR_UNIT,*) "WARNING: SedCNP_option = 2 is not yet implemented. Skipping."
          endif
          return            
@@ -2035,6 +2044,7 @@ module module_SedCNPmodel_driver
          !will be developed later
          !stop "FATAL ERROR: SedCNP_option = 4 does not work in the current version"
          if (my_id .eq. io_id) then  !BK20250803
+            call progress_clear()   !WHQ5403
             write(ERROR_UNIT,*) "WARNING: SedCNP_option = 4 is not yet implemented. Skipping."
          endif
          return            
@@ -2237,6 +2247,7 @@ module module_SedCNPmodel_driver
                do m = bas_ptr(b), bas_ptr(b+1) - 1
                   if (msk(bas_ci(m), bas_cj(m)) > 0) then
                      nb_nostream_in = nb_nostream_in + 1
+                     call progress_clear()   !WHQ5403
                      write(6,*) 'WARNING: SedCNP gw basin ', b, ' is inside the basin mask but has no stream pixel;', &
                                 ' its lateral inflows reach no channel (as in the hydro model)'
                      exit
@@ -2255,22 +2266,33 @@ module module_SedCNPmodel_driver
       enddo
 
       if (SedCNPmodel%SedCNP_lateral_option == 1) then
+         call progress_clear()   !WHQ5403
          write(6,'(A)')      ' INFO: SedCNP lateral inflows (SedCNP_lateral_option = 1): groundwater from gw basins with the'
+         call progress_clear()   !WHQ5403
          write(6,'(A)')      '       hydro-model weights; surface runoff and interflow along the hydro-model cell paths'
       else
+         call progress_clear()   !WHQ5403
          write(6,'(A)')      ' INFO: SedCNP lateral inflows (SedCNP_lateral_option = 0): sum over the gw basin of each link'
       endif
+      call progress_clear()   !WHQ5403
       write(6,'(A)')         ' INFO: SedCNP gw basins and channel links (stream pixels):'
+      call progress_clear()   !WHQ5403
       write(6,'(A,I8,A,I8)') '   gw basins with cells              : ', count(bas_ptr(2:) > bas_ptr(:domain%nbasin)), &
                              '   channel links: ', domain%nch
+      call progress_clear()   !WHQ5403
       write(6,'(A,I8)')      '   gw basins draining to >1 link     : ', nbas_multi
+      call progress_clear()   !WHQ5403
       write(6,'(A,I8)')      '   links receiving from >1 gw basin  : ', nlink_multi
+      call progress_clear()   !WHQ5403
       write(6,'(A,I8)')      '   links without gw basin            : ', nlink_nobas
+      call progress_clear()   !WHQ5403
       write(6,'(A,I8,A,I8,A)') '   gw basins without stream pixels   : ', nb_nostream, '  (', ncell_nostream, ' cells)'
       if (has_msk) then
+         call progress_clear()   !WHQ5403
          write(6,'(A,I8,A,I8)') '     outside the basin mask (basn_msk): ', nb_nostream - nb_nostream_in, &
                                 '   inside: ', nb_nostream_in
       else
+         call progress_clear()   !WHQ5403
          write(6,'(A)')      '     basn_msk not found in Fulldom_hires.nc: mask check skipped'
       endif
       if (npix_nolink > 0) write(6,'(A,I8)') '   stream pixels of links not in Route_Link: ', npix_nolink

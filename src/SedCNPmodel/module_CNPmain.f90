@@ -215,6 +215,7 @@ module CNPmain
       WStorage = Axsect * Lst
       if (WStorage < 0.0) then
          WStorage = 0.0
+         call progress_clear()   !WHQ5403
          write(*,'(A, I5, A)') 'WARNING: Channel Water Storage below ZERO at channel (', chid, ')'
       endif
       SedCNP_hydro%Wstg_st(ich) = WStorage

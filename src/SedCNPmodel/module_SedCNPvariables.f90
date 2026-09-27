@@ -20,6 +20,8 @@
 
 module module_SedCNPvariables
 
+  use module_progress, only: progress_clear   !WHQ5403 erase the progress bar before messages
+
   implicit none
 
   !domain

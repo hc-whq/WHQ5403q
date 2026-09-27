@@ -96,6 +96,7 @@ read_loop_c_so: DO i = 1, domain%ix
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_soc) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Soil C initial conditions not read.', &
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -177,6 +178,7 @@ read_loop_n_so: DO i = 1, domain%ix
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_son) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Soil N initial conditions not read.', &
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -264,6 +266,7 @@ read_loop_p_so: DO i = 1, domain%ix
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_sop) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Soil P initial conditions not read.', &
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -472,6 +475,7 @@ read_loop_c_gw: DO gwid = 1, domain%nbasin
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_gwc) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Groundwater C initial conditions not read.',&
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -510,6 +514,7 @@ read_loop_n_gw: DO gwid = 1, domain%nbasin
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_gwn) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Groundwater N initial conditions not read.',&
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -550,6 +555,7 @@ read_loop_p_gw: DO gwid = 1, domain%nbasin
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_gwp) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Groundwater P initial conditions not read.',&
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -626,6 +632,7 @@ read_loop_p_gw: DO gwid = 1, domain%nbasin
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_chc) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Channel C initial conditions not read.',&
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -699,6 +706,7 @@ read_loop_p_gw: DO gwid = 1, domain%nbasin
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_chn) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Channel N initial conditions not read.',&
                       ' Performing cold start.'
             message_printed = .TRUE.
@@ -775,6 +783,7 @@ read_loop_p_gw: DO gwid = 1, domain%nbasin
       IF (.NOT. read_successful) THEN
          !IF (.NOT. message_printed) THEN
          IF (.NOT. message_printed .and. len_trim(SedCNPmodel%restart_filename_chp) == 0) THEN   !WHQ5403 read from the NetCDF restart file instead
+            call progress_clear()   !WHQ5403
             write(*,*) 'INFO: Channel P initial conditions not read.',&
                       ' Performing cold start.'
             message_printed = .TRUE.

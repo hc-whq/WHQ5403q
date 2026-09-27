@@ -60,6 +60,7 @@ module module_lakeSedCNP
 
       inquire(file=filename_lakeparm, exist=file_exists)
       if (.not. file_exists) then
+         call progress_clear()   !WHQ5403
          write(6,*) 'INFO: ', filename_lakeparm, ' not found. Lakes are not simulated in SedCNP.'
          return
       endif
@@ -128,6 +129,7 @@ module module_lakeSedCNP
       enddo
       do il = 1, lake%nlake
          if (nout(il) /= 1) then
+            call progress_clear()   !WHQ5403
             write(6,*) 'ERROR: Lake_Init: lake ', lake%lake_id(il), ' has ', nout(il), ' outlet links'
             call hydro_stop("Lake_Init: each lake must have exactly one outlet link")
          endif
@@ -148,10 +150,12 @@ module module_lakeSedCNP
 
       lake%active = .true.
 
+      call progress_clear()   !WHQ5403
       write(6,*) 'INFO: SedCNP lakes: ', lake%nlake
       do il = 1, lake%nlake
          nint_lk = count(lake%typel == 2 .and. lake%lake_of_ich == il)
          ninf_lk = count(lake%typel == 3 .and. lake%lake_of_ich == il)
+         call progress_clear()   !WHQ5403
          write(6,'(A,I10,A,I10,A,F12.1,A,F10.3,A,I4,A,I4)') '   lake ', lake%lake_id(il), &
                '  outlet link ', SedCNP_hydro%linkID(lake%outlet_ich(il)), &
                '  area [m2] ', lake%area(il), '  BottomE [m] ', lake%bottomE(il), &
@@ -187,6 +191,7 @@ module module_lakeSedCNP
                          '.LAKEOUT_DOMAIN1'
       inquire(file=trim(filename_LAKEOUT), exist=file_exists)
       if (.not. file_exists) then
+         call progress_clear()   !WHQ5403
          write(6,*) 'ERROR: Lake_UpdateHydro: ', trim(filename_LAKEOUT), ' not found'
          call hydro_stop("Lake_UpdateHydro: LAKEOUT files are required to simulate lakes (outlake = 1 in hydro.namelist)")
       endif

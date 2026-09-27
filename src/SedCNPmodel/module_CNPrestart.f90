@@ -154,8 +154,10 @@ module module_CNPrestart
       call put1c(ncid, 'Ch_POPDEPOSIT', 'channel deposited particulate organic P', 'kg-P', Ch_POPDEPOSIT)
       call nc_close(ncid, fname(9))
 
-      write(6,*) 'INFO: SedCNP restart files written: ', trim(SedCNPmodel%WHQOUT_dir)//'/RESTART_*.'// &
-                 trim(stamp)//'_DOMAIN1.nc'
+      !WHQ5403 not printed (user request)
+      !call progress_clear()   !WHQ5403
+      !write(6,*) 'INFO: SedCNP restart files written: ', trim(SedCNPmodel%WHQOUT_dir)//'/RESTART_*.'// &
+      !           trim(stamp)//'_DOMAIN1.nc'
 
    end subroutine Write_CNP_Restart
 
@@ -394,6 +396,7 @@ module module_CNPrestart
             call hydro_stop('Read_CNP_Restart: link IDs in '//trim(fname)//' differ from Route_Link.nc')
          deallocate(link)
       end select
+      call progress_clear()   !WHQ5403
       write(6,*) 'INFO: SedCNP initial conditions read from ', trim(fname)
    end subroutine open_check
 
@@ -458,6 +461,7 @@ module module_CNPrestart
       integer, intent(in)          :: status
       character(len=*), intent(in) :: what, fname
       if (status /= NF90_NOERR) then
+         call progress_clear()   !WHQ5403
          write(6,*) 'ERROR: SedCNP restart: ', trim(what), ' (', trim(fname), '): ', trim(nf90_strerror(status))
          call hydro_stop('SedCNP restart file error')
       endif

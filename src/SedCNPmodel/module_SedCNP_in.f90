@@ -56,6 +56,7 @@ module module_SedCNP_in
   iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
   if (iret .ne. 0) then
      errMsg = "get_lsm_time: failed to open the netcdf file: " // trim(fileName)
+     call progress_clear()   !WHQ5403
      print*, trim(errMsg)
      !if(fatalErr_local) call hydro_stop(trim(errMsg))
      out_buff = -9999.
@@ -66,6 +67,7 @@ module module_SedCNP_in
   if(iret .ne. 0) then
      errMsg = "WARNING: get_lsm_time: failed to get the time dimension id: " //      &
               ' in ' // trim(fileName)
+     call progress_clear()   !WHQ5403
      write(6,*) errMsg
   endif
 
@@ -73,6 +75,7 @@ module module_SedCNP_in
   if(iret .ne. 0) then
      errMsg = "WARNING: get_lsm_time: failed to get the time dimension: " //      &
               ' in ' // trim(fileName)
+     call progress_clear()   !WHQ5403
      write(6,*) errMsg
   endif
 
@@ -83,6 +86,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get_lsm_time: failed to find the variables: " //      &
                   trim(var_name) // ' and ' // trim(var_name//"_M") // &
                   ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         !if(fatalErr_local) call hydro_stop(errMsg)
         return
@@ -94,6 +98,7 @@ module module_SedCNP_in
      errMsg = "WARNING: get_lsm_time: failed to read the variable: " // &
               trim(var_name) // ' or ' // trim(var_name//"_M") // &
               ' in ' // trim(fileName)
+     call progress_clear()   !WHQ5403
      print*,trim(errMsg)
      !if(fatalErr_local) call hydro_stop(trim(errMsg))
      return
@@ -103,6 +108,7 @@ module module_SedCNP_in
   if(iret .ne. 0) then
      errMsg = "WARNING: get_lsm_time: failed to close the file: " // &
               trim(fileName)
+     call progress_clear()   !WHQ5403
      print*,trim(errMsg)
      !if(fatalErr_local) call hydro_stop(trim(errMsg))
   endif
@@ -129,6 +135,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get_feature_id: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         return
      endif
@@ -137,6 +144,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_feature_id: failed to get the feature id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -146,6 +154,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_feature_id: failed to get the feature id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -204,6 +213,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get_ixjxnsl: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         return
      endif
@@ -212,6 +222,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_ixjxnsl: failed to get west_east: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -221,6 +232,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_ixjxnsl: failed to get south_north: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -230,6 +242,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_ixjxnsl: failed to get soil_layers_stag: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -239,6 +252,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_ixjxnsl: failed to get west_east: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -248,6 +262,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_ixjxnsl: failed to get south_north: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -257,6 +272,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get_ixjxnsl: failed to get soil_layers_stag: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
         iret = nf90_close(nid)
         return
@@ -302,6 +318,7 @@ module module_SedCNP_in
      first_call = .false.
      !write(6,'(A,F10.2,A)') 'INFO: get_lsm_dx: Successfully read DX = ', get_lsm_dx, ' from the geo_static file'  !BK20251210
   else
+     call progress_clear()   !WHQ5403
      write(6,*) 'ERROR: get_lsm_dx: Could not read DX from geo_static file!'  !BK20251210
      !write(6,*) '       Please ensure GEO_STATIC_FLNM is set in hydro.namelist'  !BK20251210
      !write(6,*) '       and that the file contains a DX global attribute'  !BK20251210
@@ -361,9 +378,11 @@ module module_SedCNP_in
         endif
         iret = nf90_close(nid)
      else
+        call progress_clear()   !WHQ5403
         write(6,*) '         WARNING: Could not open geo_static file: ', trim(geo_static_file)  !BK20251210
      endif
   else
+     call progress_clear()   !WHQ5403
      write(6,*) '         WARNING: Could not find GEO_STATIC_FLNM in hydro.namelist'  !BK20251210
   endif
   
@@ -421,6 +440,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get3d_lsm_real: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         out_buff = -9999.
@@ -431,6 +451,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get3d_lsm_real: failed to get the time dimension id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -438,6 +459,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get3d_lsm_real: failed to get the time dimension: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -452,6 +474,7 @@ module module_SedCNP_in
            errMsg = "WARNING: get3d_lsm_real: failed to find the variables: " //      &
                      trim(var_name) // ' and ' // trim(var_name//"_M") // &
                      ' in ' // trim(fileName)
+           call progress_clear()   !WHQ5403
            write(6,*) errMsg
            !if(fatalErr_local) call hydro_stop(errMsg)
            return
@@ -463,6 +486,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get3d_lsm_real: failed to read the variable: " // &
                  trim(var_name) // ' or ' // trim(var_name//"_M") // &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         return
@@ -472,6 +496,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get3d_lsm_real: failed to close the file: " // &
                  trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
      endif
@@ -509,6 +534,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get4d_lsm_real: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         out_buff = -9999.
@@ -520,6 +546,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_lsm_real: failed to get the time dimension id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -527,6 +554,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_lsm_real: failed to get the time dimension: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -535,6 +563,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_lsm_real: failed to get the time dimension id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -542,6 +571,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_lsm_real: failed to get the soil layer dimension: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -554,6 +584,7 @@ module module_SedCNP_in
            errMsg = "WARNING: get4d_lsm_real: failed to find the variables: " //      &
                      trim(var_name) // ' and ' // trim(var_name//"_M") // &
                      ' in ' // trim(fileName)
+           call progress_clear()   !WHQ5403
            write(6,*) errMsg
            !if(fatalErr_local) call hydro_stop(errMsg)
            return
@@ -565,6 +596,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get4d_lsm_real: failed to read the variable: " // &
                  trim(var_name) // ' or ' // trim(var_name//"_M") // &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         return
@@ -574,6 +606,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_lsm_real: failed to close the file: " // &
                  trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
      endif
@@ -608,6 +641,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get4d_soil_real: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         out_buff = -9999.
@@ -619,6 +653,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_soil_real: failed to get the time dimension id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -626,6 +661,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_soil_real: failed to get the time dimension: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -634,6 +670,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_soil_real: failed to get the time dimension id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -641,6 +678,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_soil_real: failed to get the soil layer dimension: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -653,6 +691,7 @@ module module_SedCNP_in
            errMsg = "WARNING: get4d_soil_real: failed to find the variables: " //      &
                      trim(var_name) // ' and ' // trim(var_name//"_M") // &
                      ' in ' // trim(fileName)
+           call progress_clear()   !WHQ5403
            write(6,*) errMsg
            !if(fatalErr_local) call hydro_stop(errMsg)
            return
@@ -664,6 +703,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get4d_soil_real: failed to read the variable: " // &
                  trim(var_name) // ' or ' // trim(var_name//"_M") // &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         return
@@ -673,6 +713,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get4d_soil_real: failed to close the file: " // &
                  trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
      endif
@@ -713,6 +754,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get1d_ch_real: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         out_buff = -9999.
@@ -742,6 +784,7 @@ module module_SedCNP_in
            errMsg = "WARNING: get1d_ch_real: failed to find the variables: " //      &
                      trim(var_name) // ' and ' // trim(var_name//"_M") // &
                      ' in ' // trim(fileName)
+           call progress_clear()   !WHQ5403
            write(6,*) errMsg
            !if(fatalErr_local) call hydro_stop(errMsg)
            return
@@ -753,6 +796,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get1d_ch_real: failed to read the variable: " // &
                  trim(var_name) // ' or ' // trim(var_name//"_M") // &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         return
@@ -762,6 +806,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get1d_lsm_real: failed to close the file: " // &
                  trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
      endif
@@ -795,6 +840,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get1d_ch_int: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         out_buff = -9999
@@ -810,6 +856,7 @@ module module_SedCNP_in
            errMsg = "WARNING: get1d_ch_int: failed to find the variables: " //      &
                      trim(var_name) // ' and ' // trim(var_name//"_M") // &
                      ' in ' // trim(fileName)
+           call progress_clear()   !WHQ5403
            write(6,*) errMsg
            !if(fatalErr_local) call hydro_stop(errMsg)
            return
@@ -821,6 +868,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get1d_ch_int: failed to read the variable: " // &
                  trim(var_name) // ' or ' // trim(var_name//"_M") // &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         return
@@ -830,6 +878,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get1d_ch_int: failed to close the file: " // &
                  trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
      endif
@@ -927,6 +976,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get2d_int: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         out_buff = -9999
@@ -942,6 +992,7 @@ module module_SedCNP_in
            errMsg = "WARNING: get2d_int: failed to find the variables: " //      &
                      trim(var_name) // ' and ' // trim(var_name//"_M") // &
                      ' in ' // trim(fileName)
+           call progress_clear()   !WHQ5403
            write(6,*) errMsg
            !if(fatalErr_local) call hydro_stop(errMsg)
            return
@@ -953,6 +1004,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get2d_int: failed to read the variable: " // &
                  trim(var_name) // ' or ' // trim(var_name//"_M") // &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         return
@@ -962,6 +1014,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get2d_int: failed to close the file: " // &
                  trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
      endif
@@ -998,6 +1051,7 @@ module module_SedCNP_in
      iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
      if (iret .ne. 0) then
         errMsg = "get3d_lsm_int: failed to open the netcdf file: " // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*, trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         out_buff = -9999
@@ -1008,6 +1062,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get3d_lsm_int: failed to get the time dimension id: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -1015,6 +1070,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get3d_lsm_int: failed to get the time dimension: " //      &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         write(6,*) errMsg
      endif
 
@@ -1027,6 +1083,7 @@ module module_SedCNP_in
            errMsg = "WARNING: get3d_lsm_int: failed to find the variables: " //      &
                      trim(var_name) // ' and ' // trim(var_name//"_M") // &
                      ' in ' // trim(fileName)
+           call progress_clear()   !WHQ5403
            write(6,*) errMsg
            !if(fatalErr_local) call hydro_stop(errMsg)
            return
@@ -1038,6 +1095,7 @@ module module_SedCNP_in
         errMsg = "WARNING: get3d_lsm_int: failed to read the variable: " // &
                  trim(var_name) // ' or ' // trim(var_name//"_M") // &
                  ' in ' // trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
         return
@@ -1047,6 +1105,7 @@ module module_SedCNP_in
      if(iret .ne. 0) then
         errMsg = "WARNING: get3d_lsm_int: failed to close the file: " // &
                  trim(fileName)
+        call progress_clear()   !WHQ5403
         print*,trim(errMsg)
         !if(fatalErr_local) call hydro_stop(trim(errMsg))
      endif
@@ -1242,12 +1301,14 @@ module module_SedCNP_in
       khour = SedCNPmodel%SedCNP_khour    !BK20250714
 
       if ((khour < 0) .and. (SedCNPmodel%SedCNP_kday < 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("FATAL ERROR: In ReadCH_PNTSRC() - "// &
                "Namelist error: Either KHOUR or KDAY must be defined.")')
          stop
       else if (( khour < 0 ) .and. (SedCNPmodel%SedCNP_kday > 0)) then
          khour = SedCNPmodel%SedCNP_kday * 24
       else if ((khour > 0) .and. (SedCNPmodel%SedCNP_kday > 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("WARNING: In ReadCH_PNTSRC() - Check Namelist: KHOUR and KDAY both defined.")')
          stop
       endif      
@@ -1434,6 +1495,7 @@ module module_SedCNP_in
             ! to stay synchronized. Only the owning process stores the data.
             read(str_line, *, iostat=ierr) str_date, str_var
             if (ierr > 0) then
+               call progress_clear()   !WHQ5403
                write(*,*) 'Format error in CH_PNTSRC file: ', trim(str_line)
                call hydro_stop("Failed to read input data (CH_PNTSRC)")
             endif
@@ -1620,12 +1682,14 @@ module module_SedCNP_in
       khour = SedCNPmodel%SedCNP_khour    !BK20250714
 
       if ((khour < 0) .and. (SedCNPmodel%SedCNP_kday < 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("FATAL ERROR: In ReadCH_ABSDIS() - "// &
                "Namelist error: Either KHOUR or KDAY must be defined.")')
          stop
       else if (( khour < 0 ) .and. (SedCNPmodel%SedCNP_kday > 0)) then
          khour = SedCNPmodel%SedCNP_kday * 24
       else if ((khour > 0) .and. (SedCNPmodel%SedCNP_kday > 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("WARNING: In ReadCH_ABSDIS() - Check Namelist: KHOUR and KDAY both defined.")')
          stop
       endif
@@ -1849,6 +1913,7 @@ module module_SedCNP_in
             ! to stay synchronized. Only the owning process stores the data.
             read(str_line, *, iostat=ierr) str_date, str_var
             if (ierr > 0) then
+               call progress_clear()   !WHQ5403
                write(*,*) 'Format error in CH_ABSDIS file: ', trim(str_line)
                call hydro_stop("Failed to read input data (CH_ABSDIS)")
             endif
@@ -2125,9 +2190,11 @@ module module_SedCNP_in
          if (st > 0 .and. st <= size(overSed%SOILPSF, dim=1)) then
             overSed%SOILPSF(st, 1:nps) = psf(1:nps)
          else if (st <= 0) then
+            call progress_clear()   !WHQ5403
             write(*, '("FATAL ERROR: Soil texture code must be greater than zero")')
             stop
          else ! st is out of bounds
+            call progress_clear()   !WHQ5403
             write(*, '("WARNING: Soil texture code ", I0, " is out of bounds, skipping.")') st
          endif
          !--- BK20250720

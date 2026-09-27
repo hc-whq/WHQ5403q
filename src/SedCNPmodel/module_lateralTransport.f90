@@ -96,6 +96,7 @@ module module_lateralTransport
                enddo
             enddo
          else
+            call progress_clear()   !WHQ5403
             write(6,*) 'WARNING: Lateral_Transport_Init: LAKEGRID not found in Fulldom_hires.nc;', &
                        ' surface loads to lakes are counted as losses'
          endif
@@ -106,6 +107,7 @@ module module_lateralTransport
       open(ubud, file='./debug/lateral_budget.csv', status='replace')
       write(ubud,'(A)') 'itime,group,source_surface,interflow_moved,interflow_to_soil,interflow_exfiltrated,'// &
                         'interflow_boundary,to_channel,to_lake,boundary,unlinked,remaining_to_soil,residual'
+      call progress_clear()   !WHQ5403
       write(6,'(A,I8,A,I8)') ' INFO: SedCNP lateral transport: stream pixels mapped ', count(cell_link > 0), &
                              '   lake cells mapped ', count(cell_lake > 0)
 
@@ -219,6 +221,7 @@ module module_lateralTransport
       status = status + abs(get3d_lsm_real("sub_exfil", sub_exfil, ix, jx, trim(filename_RT)))
       status = status + abs(get3d_lsm_real("q_intf",    q_intf,    ix, jx, trim(filename_RT)))
       if (status /= 0) then
+         call progress_clear()   !WHQ5403
          write(6,*) 'ERROR: Lateral_Transport: cell water fluxes (sfc_*, sub_*) not found in ', trim(filename_RT)
          call hydro_stop("SedCNP_lateral_option = 1 requires RTOUT from the hydro model with the cell water "// &
                          "fluxes (rerun the hydro model), or set SedCNP_lateral_option = 0")

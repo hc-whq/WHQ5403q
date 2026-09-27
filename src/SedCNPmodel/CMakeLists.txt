@@ -4,6 +4,7 @@ add_library(hydro_SedCNPmodel STATIC
 #=====||__WHQ5403__||=====!
 #
 	module_SedCNP_config.f90
+	module_progress.f90
 #
 #=====||__WHQ5403__||=====!
 	module_SedCNPvariables.f90

@@ -13,9 +13,10 @@ program noah_hrldas_driver
 !
 #ifdef MPP_LAND
   use module_mpp_land, only: mpp_land_sync
-  use module_mpp_land, only: my_id, io_id   !WHQ5403 progress bar on the I/O rank
+  !use module_mpp_land, only: my_id, io_id   !WHQ5403 progress bar on the I/O rank
 #endif
-  use ISO_FORTRAN_ENV, only: ERROR_UNIT, OUTPUT_UNIT   !WHQ5403
+  !use ISO_FORTRAN_ENV, only: ERROR_UNIT, OUTPUT_UNIT   !WHQ5403
+  use module_progress, only: progress_show   !WHQ5403 progress bar (module_progress)
 !=====||__WHQ5403__||=====!
 !
   use module_SedCNPmodel_driver
@@ -57,7 +58,7 @@ program noah_hrldas_driver
       do ITIME = 0, NTIME
 #endif
          ! DTs must be passed to the exe.
-         call progress_clear()   !WHQ5403 messages of the time-step first, progress bar last
+         !call progress_clear()   !WHQ5403 messages of the time-step first, progress bar last
          call land_driver_exe(ITIME, state)
          call progress_show(ITIME, NTIME, "water-only")   !WHQ5403
       end do
@@ -75,7 +76,7 @@ program noah_hrldas_driver
 #else
       do ITIME = 0, NTIME
 #endif
-         call progress_clear()   !WHQ5403 messages of the time-step first, progress bar last
+         !call progress_clear()   !WHQ5403 messages of the time-step first, progress bar last
          call SedCNP_driver_exe(ITIME)
          call progress_show(ITIME, NTIME, "water quality")   !WHQ5403
       end do
@@ -92,36 +93,33 @@ program noah_hrldas_driver
 
 !=====||__WHQ5403__||=====!
 !
-contains
+! progress bar moved to module_progress (SedCNPmodel), which also erases it before messages
+!contains
 
-  ! Progress bar on stderr, printed at the end of each time-step after the messages of the
-  ! time-step (INFO, WARNING, ...), and erased at the start of the next time-step so that
-  ! those messages start on a clean line.
-  subroutine progress_clear()
-#ifdef MPP_LAND
-    if (my_id /= io_id) return
-#endif
-    flush(OUTPUT_UNIT)
-    write(ERROR_UNIT, '(A)', advance='no') char(13)//repeat(' ', 80)//char(13)
-    flush(ERROR_UNIT)
-  end subroutine progress_clear
+!  ! Progress bar on stderr, printed at the end of each time-step after the messages of the
+!  ! time-step (INFO, WARNING, ...), and erased at the start of the next time-step so that
+!  ! those messages start on a clean line.
+!  subroutine progress_clear()
+!    if (my_id /= io_id) return
+!    flush(OUTPUT_UNIT)
+!    write(ERROR_UNIT, '(A)', advance='no') char(13)//repeat(' ', 80)//char(13)
+!    flush(ERROR_UNIT)
+!  end subroutine progress_clear
 
-  subroutine progress_show(it, nt, label)
-    integer,          intent(in) :: it, nt
-    character(len=*), intent(in) :: label
-#ifdef MPP_LAND
-    if (my_id /= io_id) return
-#endif
-    flush(OUTPUT_UNIT)
-    write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') " WRF-HydroQual running ("//label//") ... ", &
-         real(it) / real(max(nt,1)) * 100.0, "% (", it, " / ", nt, ")"
-    if (it == nt) then
-       ! On the final timestep, print a newline, then the success message.
-       write(ERROR_UNIT,*)
-       write(ERROR_UNIT,*) "The model finished successfully"
-    endif
-    flush(ERROR_UNIT)
-  end subroutine progress_show
+!  subroutine progress_show(it, nt, label)
+!    integer,          intent(in) :: it, nt
+!    character(len=*), intent(in) :: label
+!    if (my_id /= io_id) return
+!    flush(OUTPUT_UNIT)
+!    write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') " WRF-HydroQual running ("//label//") ... ", &
+!         real(it) / real(max(nt,1)) * 100.0, "% (", it, " / ", nt, ")"
+!    if (it == nt) then
+!       ! On the final timestep, print a newline, then the success message.
+!       write(ERROR_UNIT,*)
+!       write(ERROR_UNIT,*) "The model finished successfully"
+!    endif
+!    flush(ERROR_UNIT)
+!  end subroutine progress_show
 !
 !=====||__WHQ5403__||=====!
 
