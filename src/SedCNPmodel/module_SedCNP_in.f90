@@ -877,6 +877,32 @@ module module_SedCNP_in
      deallocate(ids, buf)
 
   end function get1d_bas_real
+
+  !> @brief .true. if the 2-D grid of fileName is stored north-up, i.e. its y coordinate variable
+  !! decreases with the row index (WRF-Hydro convention for Fulldom_hires.nc and GWBASINS.nc).
+  !! The model grid (LSM/RTOUT outputs) is south-up. Without a y variable, north-up is assumed.
+  logical function is_north_up(fileName)
+
+     implicit none
+
+     character(len=*), intent(in) :: fileName
+     integer                      :: iret, nid, varid, dimid, ny
+     real(8)                      :: y1(1), yn(1)
+
+     is_north_up = .true.
+     iret = nf90_open(path=trim(fileName), mode=NF90_NOWRITE, ncid=nid)
+     if (iret /= 0) return
+     iret = nf90_inq_varid(nid, "y", varid)
+     if (iret == 0) iret = nf90_inq_dimid(nid, "y", dimid)
+     if (iret == 0) iret = nf90_inquire_dimension(nid, dimid, len=ny)
+     if (iret == 0 .and. ny > 1) then
+        iret = nf90_get_var(nid, varid, y1, start=(/1/), count=(/1/))
+        if (iret == 0) iret = nf90_get_var(nid, varid, yn, start=(/ny/), count=(/1/))
+        if (iret == 0) is_north_up = (y1(1) > yn(1))
+     endif
+     iret = nf90_close(nid)
+
+  end function is_north_up
 !
 !=====||__WHQ5403__||=====!
 

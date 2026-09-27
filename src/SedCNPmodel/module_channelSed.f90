@@ -194,21 +194,25 @@ module module_channelSed
       channelSed%Solch0(ips,ich) = 0.  !BK20250925
 
       ! --- influx: overland surface runoff  !BK20240726
-      do i = 1, domain%ix
-         do j = 1, domain%jx
-               if (gwid > 0) then  !BK20250928
-                  !if (SedCNP_hydro%gwbasin(i,j) .eq. gwid) then    !BK20231012  !BK20240610 !BK20240726
-                  if (lake%gwbasin_lat(i,j) .eq. gwid) then    !BK20231012  !BK20240610 !BK20240726   !WHQ5403 lateral inflows of internal lake links -> lake outlet
-                     if (overSed%Ssurf0(ips,i,j) >= 0.0) then  
-                        !channelSed%Solch(ips,ich) = channelSed%Solch(ips,ich) + overSed%Ssurf(ips,i,j)
-                        channelSed%Solch0(ips,ich) = channelSed%Solch0(ips,ich) + overSed%Ssurf0(ips,i,j)  !BK20240618  !BK20250925
-                     endif
-                  endif
-               else  !BK20250928
-                  cycle  !BK20250928
-               endif  !BK20250928
-         enddo
-      enddo
+      !do i = 1, domain%ix
+         !do j = 1, domain%jx
+               !if (gwid > 0) then  !BK20250928
+                  !!if (SedCNP_hydro%gwbasin(i,j) .eq. gwid) then    !BK20231012  !BK20240610 !BK20240726
+                  !if (lake%gwbasin_lat(i,j) .eq. gwid) then    !BK20231012  !BK20240610 !BK20240726   !WHQ5403 lateral inflows of internal lake links -> lake outlet
+                     !if (overSed%Ssurf0(ips,i,j) >= 0.0) then  
+                        !!channelSed%Solch(ips,ich) = channelSed%Solch(ips,ich) + overSed%Ssurf(ips,i,j)
+                        !channelSed%Solch0(ips,ich) = channelSed%Solch0(ips,ich) + overSed%Ssurf0(ips,i,j)  !BK20240618  !BK20250925
+                     !endif
+                  !endif
+               !else  !BK20250928
+                  !cycle  !BK20250928
+               !endif  !BK20250928
+         !enddo
+      !enddo
+      !=====||__WHQ5403__||=====!
+      ! lateral loads of the link (module_lateralTransport; SedCNP_lateral_option 1: hydro-model paths, 0: gw basin sum)
+      channelSed%Solch0(ips,ich) = latS_ch(ips, ich) / dt   ! [kg s-1]
+      !=====||__WHQ5403__||=====!
 
       !BK20240618 commented out
       !if (channelSed%Susch(ips,ich) < 0.0) then

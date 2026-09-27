@@ -700,6 +700,20 @@ module module_SedCNPmodel_driver
       status = get2d_int("LINKID", SedCNP_hydro%linkID_grid, &
                         domain%ixrt, domain%jxrt, trim(geo_finegrid_flnm))   !BK20240616
 
+      !=====||__WHQ5403__||=====!
+      ! Fulldom_hires.nc and GWBASINS.nc are stored north-up (y decreasing), whereas the LSM/RTOUT
+      ! outputs read by SedCNP are south-up (the model grid, as read by the hydro model). Without
+      ! this flip, the gw basins and stream pixels were overlaid on the mirrored LSM cells.
+      if (is_north_up(trim(filename_subbasinID))) then
+         SedCNP_hydro%subbasinID = SedCNP_hydro%subbasinID(:, domain%jxrt:1:-1)
+         write(6,*) 'INFO: SedCNP: ', trim(filename_subbasinID), ' is north-up; flipped to the model grid'
+      endif
+      if (is_north_up(trim(geo_finegrid_flnm))) then
+         SedCNP_hydro%linkID_grid = SedCNP_hydro%linkID_grid(:, domain%jxrt:1:-1)
+         write(6,*) 'INFO: SedCNP: ', trim(geo_finegrid_flnm), ' is north-up; flipped to the model grid'
+      endif
+      !=====||__WHQ5403__||=====!
+
       !---WHQ
       filename_soil= './DOMAIN/soil_properties.nc'
       !soil water content at saturation [m3 m-3]
@@ -1256,6 +1270,7 @@ module module_SedCNPmodel_driver
       use ISO_FORTRAN_ENV, ONLY: ERROR_UNIT, int64
       use hashtable, only: hash_t   !WHQ5403 link ID -> channel index mapping
       use module_lakeSedCNP, only: Lake_Init, Lake_UpdateHydro   !WHQ5403 lakes/reservoirs
+      use module_lateralTransport, only: Lateral_Transport_Init, Lateral_Loads   !WHQ5403 lateral loads to channels
 #ifdef MPP_LAND
       use module_mpp_land, only: mpp_land_sync, my_id, io_id
 #endif
@@ -1398,6 +1413,8 @@ module module_SedCNPmodel_driver
          ! lakes/reservoirs: identify lake links (first time-step) and set the lake water
          ! balance and the outlet-link hydraulics (every time-step, after the hydro inputs)
          if (itime == 1) call Lake_Init()
+         if (itime == 1) call Lateral_Map_Init()   ! lateral inflows from gw basins to channels (after Lake_Init)
+         if (itime == 1) call Lateral_Transport_Init()
          call Lake_UpdateHydro(itime)
          !=====||__WHQ5403__||=====!
          
@@ -1906,6 +1923,9 @@ module module_SedCNPmodel_driver
             call RunCNP_Gw(gwid)  !BK20240613
          enddo
 
+         !WHQ5403 lateral (surface runoff, interflow) loads of this time-step to the channel links
+         call Lateral_Loads(itime)
+
          !channel
          if (itime == 1) then  !BK20231114
             !call ReadSBID_CH()   !BK20231011  !BK20240525
@@ -2013,5 +2033,246 @@ module module_SedCNPmodel_driver
       endif
 
    end subroutine SedCNP_driver_exe
+
+!=====||__WHQ5403__||=====!
+!
+   !> @brief Builds the distribution of the lateral inflows (surface runoff, interflow, groundwater)
+   !! from the gw basins to the channels as in the hydro model (simp_gw_buck, module_GW_baseflow):
+   !! the flux of gw basin b is divided uniformly among its stream pixels, so link k receives the
+   !! fraction w(k,b) = npix(k,b)/npix(b). Stream pixels of internal lake links are counted for the
+   !! lake outlet link. Also lists the LSM cells of each gw basin and writes diagnostics.
+   !! Called once, after the channel-to-grid mapping and Lake_Init.
+   subroutine Lateral_Map_Init()
+
+      use module_SedCNPvariables
+      use module_SedCNP_in, only: get2d_int, is_north_up
+      use SedCNP_config,    only: SedCNPmodel
+      use hashtable,        only: hash_t
+      use ISO_FORTRAN_ENV,  only: int64
+
+      implicit none
+
+      integer, allocatable :: npix_b(:)          ! stream pixels of each gw basin
+      integer, allocatable :: nbas_k(:)          ! gw basins of each link
+      integer, allocatable :: nlnk_b(:)          ! links of each gw basin
+      integer, allocatable :: pk(:), pb(:)       ! (link, basin) of each stream pixel (pk = 0: link not found)
+      integer, allocatable :: fill(:), msk(:,:)
+      integer              :: i, j, k, b, n, m, npix, nnz, status, ncell
+      integer              :: nb_nostream, nb_nostream_in, ncell_nostream, nlink_multi, nbas_multi
+      integer              :: nlink_nobas, npix_nolink
+      logical              :: found_b, has_msk
+      real(8)              :: wsum_min, wsum_max, wsum
+      type(hash_t)         :: hash_table
+      integer(kind=int64)  :: val
+      logical              :: found
+
+      ! --- stream pixels: (link, gw basin)
+      npix = count(SedCNP_hydro%linkID_grid >= 1)
+      allocate(pk(npix), pb(npix), npix_b(domain%nbasin))
+      npix_b = 0
+      npix_nolink = 0
+      call hash_table%set_all_idx(int(SedCNP_hydro%linkID, int64), domain%nch)
+      n = 0
+      do j = 1, domain%jxrt
+         do i = 1, domain%ixrt
+            if (SedCNP_hydro%linkID_grid(i,j) >= 1) then
+               n = n + 1
+               pb(n) = SedCNP_hydro%gwbasin(i,j)   ! AGGFACTRT = 1 (routing grid = LSM grid)
+               pk(n) = 0
+               call hash_table%get(int(SedCNP_hydro%linkID_grid(i,j), int64), val, found)
+               if (found) pk(n) = lake_ich(int(val))
+               if (pb(n) >= 1 .and. pb(n) <= domain%nbasin) then
+                  npix_b(pb(n)) = npix_b(pb(n)) + 1
+                  if (pk(n) == 0) npix_nolink = npix_nolink + 1
+               else
+                  pb(n) = 0
+               endif
+            endif
+         enddo
+      enddo
+      call hash_table%clear()
+
+      ! --- CSR: basins and weights of each link
+      allocate(nbas_k(domain%nch), nlnk_b(domain%nbasin), lat_ptr(domain%nch+1), fill(domain%nch))
+      allocate(lat_gw(npix), lat_w(npix))
+      nbas_k = 0
+      do n = 1, npix
+         if (pk(n) > 0 .and. pb(n) > 0) nbas_k(pk(n)) = nbas_k(pk(n)) + 1   ! upper bound (duplicates)
+      enddo
+      lat_ptr(1) = 1
+      do k = 1, domain%nch
+         lat_ptr(k+1) = lat_ptr(k) + nbas_k(k)
+      enddo
+      fill = 0
+      lat_w = 0.0d0
+      do n = 1, npix
+         k = pk(n); b = pb(n)
+         if (k == 0 .or. b == 0) cycle
+         found_b = .false.
+         do m = lat_ptr(k), lat_ptr(k) + fill(k) - 1
+            if (lat_gw(m) == b) then
+               lat_w(m) = lat_w(m) + 1.0d0
+               found_b = .true.
+               exit
+            endif
+         enddo
+         if (.not. found_b) then
+            m = lat_ptr(k) + fill(k)
+            lat_gw(m) = b
+            lat_w(m) = 1.0d0
+            fill(k) = fill(k) + 1
+         endif
+      enddo
+      ! compact (remove the duplicate slots) and normalise: w = npix(k,b)/npix(b)
+      nnz = 0
+      do k = 1, domain%nch
+         m = lat_ptr(k)
+         lat_ptr(k) = nnz + 1
+         do n = m, m + fill(k) - 1
+            nnz = nnz + 1
+            lat_gw(nnz) = lat_gw(n)
+            lat_w(nnz)  = lat_w(n) / real(npix_b(lat_gw(n)), 8)
+         enddo
+      enddo
+      lat_ptr(domain%nch+1) = nnz + 1
+
+      ! --- SedCNP_lateral_option = 0 (previous method): each link takes its own gw basin gwid_ch
+      !     (weight 1, whole basin), and a lake outlet link also the gw basins of the internal links
+      if (SedCNPmodel%SedCNP_lateral_option == 0) then
+         nnz = 0
+         do k = 1, domain%nch
+            lat_ptr(k) = nnz + 1
+            if (lake%active) then
+               if (lake%typel(k) == 2) cycle
+            endif
+            if (domain%gwid_ch(k) >= 1 .and. domain%gwid_ch(k) <= domain%nbasin) then
+               nnz = nnz + 1
+               lat_gw(nnz) = domain%gwid_ch(k)
+               lat_w(nnz)  = 1.0d0
+            endif
+            if (lake%active) then
+               if (lake%typel(k) == 1) then
+                  do m = 1, domain%nch
+                     if (lake%typel(m) /= 2 .or. lake%lake_of_ich(m) /= lake%lake_of_ich(k)) cycle
+                     b = domain%gwid_ch(m)
+                     if (b < 1 .or. b > domain%nbasin .or. b == domain%gwid_ch(k)) cycle
+                     if (any(lat_gw(lat_ptr(k):nnz) == b)) cycle
+                     nnz = nnz + 1
+                     lat_gw(nnz) = b
+                     lat_w(nnz)  = 1.0d0
+                  enddo
+               endif
+            endif
+         enddo
+         lat_ptr(domain%nch+1) = nnz + 1
+      endif
+
+      ! --- LSM cells of each gw basin
+      allocate(bas_ptr(domain%nbasin+1))
+      ncell = count(SedCNP_hydro%gwbasin >= 1 .and. SedCNP_hydro%gwbasin <= domain%nbasin)
+      allocate(bas_ci(ncell), bas_cj(ncell))
+      nlnk_b = 0   ! temporarily: cells per basin
+      do j = 1, domain%jx
+         do i = 1, domain%ix
+            b = SedCNP_hydro%gwbasin(i,j)
+            if (b >= 1 .and. b <= domain%nbasin) nlnk_b(b) = nlnk_b(b) + 1
+         enddo
+      enddo
+      bas_ptr(1) = 1
+      do b = 1, domain%nbasin
+         bas_ptr(b+1) = bas_ptr(b) + nlnk_b(b)
+      enddo
+      nlnk_b = 0
+      do j = 1, domain%jx
+         do i = 1, domain%ix
+            b = SedCNP_hydro%gwbasin(i,j)
+            if (b >= 1 .and. b <= domain%nbasin) then
+               m = bas_ptr(b) + nlnk_b(b)
+               bas_ci(m) = i
+               bas_cj(m) = j
+               nlnk_b(b) = nlnk_b(b) + 1
+            endif
+         enddo
+      enddo
+
+      ! --- diagnostics
+      allocate(msk(domain%ixrt,domain%jxrt))
+      msk = 1
+      status = get2d_int("basn_msk", msk, domain%ixrt, domain%jxrt, './DOMAIN/Fulldom_hires.nc')
+      has_msk = (status == 0)
+      if (has_msk .and. is_north_up('./DOMAIN/Fulldom_hires.nc')) msk = msk(:, domain%jxrt:1:-1)   ! to the model grid (south-up)
+
+      nlnk_b = 0
+      do k = 1, domain%nch
+         do m = lat_ptr(k), lat_ptr(k+1) - 1
+            nlnk_b(lat_gw(m)) = nlnk_b(lat_gw(m)) + 1
+         enddo
+      enddo
+      nlink_multi = 0; nlink_nobas = 0
+      do k = 1, domain%nch
+         if (lake%active) then
+            if (lake%typel(k) == 2) cycle
+         endif
+         n = lat_ptr(k+1) - lat_ptr(k)
+         if (n > 1)  nlink_multi = nlink_multi + 1
+         if (n == 0) nlink_nobas = nlink_nobas + 1
+      enddo
+      nbas_multi = count(nlnk_b > 1)
+      nb_nostream = 0; nb_nostream_in = 0; ncell_nostream = 0
+      wsum_min = huge(1.0d0); wsum_max = 0.0d0
+      do b = 1, domain%nbasin
+         if (bas_ptr(b+1) == bas_ptr(b)) cycle   ! basin without cells (e.g. fill row of GWBUCKPARM)
+         if (npix_b(b) == 0) then
+            nb_nostream = nb_nostream + 1
+            ncell_nostream = ncell_nostream + (bas_ptr(b+1) - bas_ptr(b))
+            if (has_msk) then
+               do m = bas_ptr(b), bas_ptr(b+1) - 1
+                  if (msk(bas_ci(m), bas_cj(m)) > 0) then
+                     nb_nostream_in = nb_nostream_in + 1
+                     write(6,*) 'WARNING: SedCNP gw basin ', b, ' is inside the basin mask but has no stream pixel;', &
+                                ' its lateral inflows reach no channel (as in the hydro model)'
+                     exit
+                  endif
+               enddo
+            endif
+         else
+            wsum = 0.0d0
+            do k = 1, domain%nch
+               do m = lat_ptr(k), lat_ptr(k+1) - 1
+                  if (lat_gw(m) == b) wsum = wsum + lat_w(m)
+               enddo
+            enddo
+            wsum_min = min(wsum_min, wsum); wsum_max = max(wsum_max, wsum)
+         endif
+      enddo
+
+      if (SedCNPmodel%SedCNP_lateral_option == 1) then
+         write(6,'(A)')      ' INFO: SedCNP lateral inflows (SedCNP_lateral_option = 1): groundwater from gw basins with the'
+         write(6,'(A)')      '       hydro-model weights; surface runoff and interflow along the hydro-model cell paths'
+      else
+         write(6,'(A)')      ' INFO: SedCNP lateral inflows (SedCNP_lateral_option = 0): sum over the gw basin of each link'
+      endif
+      write(6,'(A)')         ' INFO: SedCNP gw basins and channel links (stream pixels):'
+      write(6,'(A,I8,A,I8)') '   gw basins with cells              : ', count(bas_ptr(2:) > bas_ptr(:domain%nbasin)), &
+                             '   channel links: ', domain%nch
+      write(6,'(A,I8)')      '   gw basins draining to >1 link     : ', nbas_multi
+      write(6,'(A,I8)')      '   links receiving from >1 gw basin  : ', nlink_multi
+      write(6,'(A,I8)')      '   links without gw basin            : ', nlink_nobas
+      write(6,'(A,I8,A,I8,A)') '   gw basins without stream pixels   : ', nb_nostream, '  (', ncell_nostream, ' cells)'
+      if (has_msk) then
+         write(6,'(A,I8,A,I8)') '     outside the basin mask (basn_msk): ', nb_nostream - nb_nostream_in, &
+                                '   inside: ', nb_nostream_in
+      else
+         write(6,'(A)')      '     basn_msk not found in Fulldom_hires.nc: mask check skipped'
+      endif
+      if (npix_nolink > 0) write(6,'(A,I8)') '   stream pixels of links not in Route_Link: ', npix_nolink
+      if (wsum_max > 0.0d0 .and. SedCNPmodel%SedCNP_lateral_option == 1) &
+         write(6,'(A,F10.6,A,F10.6)') '   sum of groundwater weights per basin (min/max): ', wsum_min, ' / ', wsum_max
+
+      deallocate(pk, pb, npix_b, nbas_k, nlnk_b, fill, msk)
+
+   end subroutine Lateral_Map_Init
+!
+!=====||__WHQ5403__||=====!
 
 end module module_SedCNPmodel_driver

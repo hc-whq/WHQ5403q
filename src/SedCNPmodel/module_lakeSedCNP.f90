@@ -16,8 +16,8 @@
 !!   - water depth = water_sfc_elev (LAKEOUT) - BottomE (LAKEPARM), storage = LkArea * depth,
 !!   - discharge = lake outflow (LAKEOUT), velocity = outflow / cross-section (no resuspension),
 !!   - upstream inflow from the TYPEL 3 links ('to' redirected to the outlet, as in the hydro model),
-!!   - lateral inflows of the internal links (surface runoff, interflow, groundwater, point
-!!     sources, water distribution) added to the outlet link.
+!!   - lateral inflows of the internal links (surface runoff, interflow, groundwater: see
+!!     Lateral_Map_Init in the driver; point sources, water distribution) added to the outlet link.
 !! Internal lake links are excluded from the channel calculations.
 !! Outputs: LAKESEDOUT, LAKECOUT, LAKENOUT, LAKEPOUT (lake water balance and the variables
 !! of CHSEDOUT, CHCOUT, CHNOUT, CHPOUT at the lake outlet links).
@@ -48,7 +48,7 @@ module module_lakeSedCNP
       integer, allocatable :: nout(:)      ! number of outlet links of each lake
       real(8), allocatable :: buf(:)
       logical              :: file_exists
-      integer              :: ich, k, il, status, gw_out, gw_int
+      integer              :: ich, k, il, status
       integer              :: nint_lk, ninf_lk
 
       ! --- default: no lakes
@@ -57,10 +57,6 @@ module module_lakeSedCNP
       allocate(lake%typel(domain%nch), lake%lake_of_ich(domain%nch))
       lake%typel       = 0
       lake%lake_of_ich = 0
-      allocate(lake%gwbasin_lat(size(SedCNP_hydro%gwbasin,1), size(SedCNP_hydro%gwbasin,2)))
-      lake%gwbasin_lat = SedCNP_hydro%gwbasin
-      allocate(lake%gw_lake(domain%nbasin))
-      lake%gw_lake = 0
 
       inquire(file=filename_lakeparm, exist=file_exists)
       if (.not. file_exists) then
@@ -145,24 +141,7 @@ module module_lakeSedCNP
          channel_input%SideSlopch(ich) = 1.0d6                 ! vertical side walls
       enddo
 
-      ! --- lateral inflows of internal links -> lake outlet
-      do ich = 1, domain%nch
-         if (lake%typel(ich) == 2) then
-            il = lake%lake_of_ich(ich)
-            gw_out = domain%gwid_ch(lake%outlet_ich(il))
-            gw_int = domain%gwid_ch(ich)
-            if (gw_int > 0 .and. gw_int /= gw_out) then
-               if (gw_out > 0) then
-                  where (SedCNP_hydro%gwbasin == gw_int) lake%gwbasin_lat = gw_out
-                  lake%gw_lake(gw_int) = il
-               else
-                  write(6,*) 'WARNING: Lake_Init: outlet link of lake ', lake%lake_id(il), &
-                             ' has no gw basin; lateral inflows to internal link ', &
-                             SedCNP_hydro%linkID(ich), ' are not simulated'
-               endif
-            endif
-         endif
-      enddo
+      ! lateral inflows of internal links -> lake outlet: see Lateral_Map_Init (driver)
 
       lake%wse = 0.0;    lake%depth = 0.0;   lake%storage = 0.0
       lake%inflow = 0.0; lake%outflow = 0.0

@@ -935,7 +935,8 @@ module Phosphorus
       Ch_PIPS(ich) = Ch_PIPS0(ich) + Ch_PIPSusch0(ich)
 
       ! --- Lateral inflows (surface, interflow, gw) ---
-      IF (gwid >= 0) THEN
+      !IF (gwid >= 0) THEN
+      IF (gwid >= 0 .or. SedCNPmodel%SedCNP_lateral_option == 1) THEN   !WHQ5403 option 1: loads along the cell paths, independent of gwid
          ! Initialisation
          Ch_LPOPsurf0(ich) = 0.0
          Ch_RPOPsurf0(ich) = 0.0
@@ -949,42 +950,56 @@ module Phosphorus
          Ch_RDOPintf0(ich) = 0.0
          Ch_PO4intf0(ich)  = 0.0
          
-         DO i = 1, domain%ix
-            DO j = 1, domain%jx
-               !IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
-               IF (lake%gwbasin_lat(i,j) == gwid) THEN   !WHQ5403 lateral inflows of internal lake links -> lake outlet
+         !DO i = 1, domain%ix
+            !DO j = 1, domain%jx
+               !!IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+               !IF (lake%gwbasin_lat(i,j) == gwid) THEN   !WHQ5403 lateral inflows of internal lake links -> lake outlet
 
-                  ! surface runoff
-                  Ch_LPOPsurf0(ich) = Ch_LPOPsurf0(ich) + So_LPOPsurf0(i,j)
-                  Ch_RPOPsurf0(ich) = Ch_RPOPsurf0(ich) + So_RPOPsurf0(i,j)
-                  Ch_LDOPsurf0(ich) = Ch_LDOPsurf0(ich) + So_LDOPsurf0(i,j)
-                  Ch_RDOPsurf0(ich) = Ch_RDOPsurf0(ich) + So_RDOPsurf0(i,j)
-                  Ch_MBMPsurf0(ich) = Ch_MBMPsurf0(ich) + So_MBMPsurf0(i,j)
-                  Ch_PO4surf0(ich)  = Ch_PO4surf0(ich)  + So_PO4surf0(i,j)
-                  Ch_PIPAsurf0(ich) = Ch_PIPAsurf0(ich) + So_PIPAsurf0(i,j)
-                  Ch_PIPSsurf0(ich) = Ch_PIPSsurf0(ich) + So_PIPSsurf0(i,j)
+                  !! surface runoff
+                  !Ch_LPOPsurf0(ich) = Ch_LPOPsurf0(ich) + So_LPOPsurf0(i,j)
+                  !Ch_RPOPsurf0(ich) = Ch_RPOPsurf0(ich) + So_RPOPsurf0(i,j)
+                  !Ch_LDOPsurf0(ich) = Ch_LDOPsurf0(ich) + So_LDOPsurf0(i,j)
+                  !Ch_RDOPsurf0(ich) = Ch_RDOPsurf0(ich) + So_RDOPsurf0(i,j)
+                  !Ch_MBMPsurf0(ich) = Ch_MBMPsurf0(ich) + So_MBMPsurf0(i,j)
+                  !Ch_PO4surf0(ich)  = Ch_PO4surf0(ich)  + So_PO4surf0(i,j)
+                  !Ch_PIPAsurf0(ich) = Ch_PIPAsurf0(ich) + So_PIPAsurf0(i,j)
+                  !Ch_PIPSsurf0(ich) = Ch_PIPSsurf0(ich) + So_PIPSsurf0(i,j)
 
-                  ! interflow
-                  DO isl = 1, domain%nsl
-                     Ch_LDOPintf0(ich) = Ch_LDOPintf0(ich) + &
-                        So_LDOPintf0(i,isl,j)
-                     Ch_RDOPintf0(ich) = Ch_RDOPintf0(ich) + &
-                        So_RDOPintf0(i,isl,j)
-                     Ch_PO4intf0(ich)  = Ch_PO4intf0(ich) + &
-                        So_PO4intf0(i,isl,j)
-                  END DO
+                  !! interflow
+                  !DO isl = 1, domain%nsl
+                     !Ch_LDOPintf0(ich) = Ch_LDOPintf0(ich) + &
+                        !So_LDOPintf0(i,isl,j)
+                     !Ch_RDOPintf0(ich) = Ch_RDOPintf0(ich) + &
+                        !So_RDOPintf0(i,isl,j)
+                     !Ch_PO4intf0(ich)  = Ch_PO4intf0(ich) + &
+                        !So_PO4intf0(i,isl,j)
+                  !END DO
 
-               END IF
-            END DO
-         END DO
+               !END IF
+            !END DO
+         !END DO
+         !=====||__WHQ5403__||=====!
+         ! lateral loads of the link (module_lateralTransport; SedCNP_lateral_option 1: hydro-model paths, 0: gw basin sum)
+         Ch_LPOPsurf0(ich) = latS_ch(17, ich)
+         Ch_RPOPsurf0(ich) = latS_ch(18, ich)
+         Ch_LDOPsurf0(ich) = latS_ch(19, ich)
+         Ch_RDOPsurf0(ich) = latS_ch(20, ich)
+         Ch_MBMPsurf0(ich) = latS_ch(21, ich)
+         Ch_PO4surf0(ich) = latS_ch(22, ich)
+         Ch_PIPAsurf0(ich) = latS_ch(23, ich)
+         Ch_PIPSsurf0(ich) = latS_ch(24, ich)
+         Ch_LDOPintf0(ich) = latI_ch(7, ich)
+         Ch_RDOPintf0(ich) = latI_ch(8, ich)
+         Ch_PO4intf0(ich) = latI_ch(9, ich)
+         !=====||__WHQ5403__||=====!
          
          ! groundwater inflow
          !Ch_LDOPgwch0(ich) = Gw_LDOPgwch0(gwid)
-         Ch_LDOPgwch0(ich) = gw_to_ch(Gw_LDOPgwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
+         Ch_LDOPgwch0(ich) = gw_to_ch(Gw_LDOPgwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
          !Ch_RDOPgwch0(ich) = Gw_RDOPgwch0(gwid)
-         Ch_RDOPgwch0(ich) = gw_to_ch(Gw_RDOPgwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
+         Ch_RDOPgwch0(ich) = gw_to_ch(Gw_RDOPgwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
          !Ch_PO4gwch0(ich)  = Gw_PO4gwch0(gwid)
-         Ch_PO4gwch0(ich)  = gw_to_ch(Gw_PO4gwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
+         Ch_PO4gwch0(ich)  = gw_to_ch(Gw_PO4gwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
 
          ! update storage
          Ch_LPOP(ich) = Ch_LPOP(ich) + Ch_LPOPsurf0(ich)

@@ -96,6 +96,9 @@ module config_base
      integer            :: SedCNP_khour
      integer            :: SedCNP_kday = -999
      logical            :: SedCNP_compound_channel
+     integer            :: SedCNP_lateral_option = 1   !WHQ5403 lateral (surface/interflow/groundwater) loads to channels
+                                                       !  1: along the hydro-model paths (cell-to-cell transport, RTOUT fluxes)
+                                                       !  0: sum over the gw basin of each link (previous method)
      character(len=256) :: LDASOUT_dir, WHQOUT_dir, WHQIN_dir, &
                            CiniSo_file, NiniSo_file, PiniSo_file, &
                            CiniGw_file, NiniGw_file, PiniGw_file, &
@@ -1086,6 +1089,7 @@ contains
     integer            :: SedCNP_kday  = -999
     integer            :: SedCNP_timestep
     logical            :: SedCNP_compound_channel
+    integer            :: SedCNP_lateral_option = 1   !WHQ5403
     character(len=256) :: LDASOUT_dir, WHQOUT_dir, WHQIN_dir, &
                           CiniSo_file, NiniSo_file, PiniSo_file, &
                           CiniGw_file, NiniGw_file, PiniGw_file, &
@@ -1131,6 +1135,7 @@ contains
          SedCNP_start_year, SedCNP_start_month, SedCNP_start_day, &
          SedCNP_start_hour, SedCNP_start_min, SedCNP_khour, SedCNP_kday, &
          SedCNP_timestep, SedCNP_compound_channel, &
+         SedCNP_lateral_option, &   !WHQ5403
          LDASOUT_dir, WHQOUT_dir, WHQIN_dir, &
          CiniSo_file, NiniSo_file, PiniSo_file, &
          CiniGw_file, NiniGw_file, PiniGw_file, &
@@ -1334,6 +1339,9 @@ contains
     SedCNPmodel%SedCNP_khour            = SedCNP_khour
     SedCNPmodel%SedCNP_timestep         = SedCNP_timestep
     SedCNPmodel%SedCNP_compound_channel = SedCNP_compound_channel
+    SedCNPmodel%SedCNP_lateral_option   = SedCNP_lateral_option   !WHQ5403
+    if (SedCNP_lateral_option /= 0 .and. SedCNP_lateral_option /= 1) &
+         call hydro_stop("whq.namelist ERROR: SedCNP_lateral_option must be 0 or 1")
     SedCNPmodel%LDASOUT_dir             = trim(LDASOUT_dir)
     SedCNPmodel%WHQOUT_dir              = trim(WHQOUT_dir)
     SedCNPmodel%WHQIN_dir               = trim(WHQIN_dir)
