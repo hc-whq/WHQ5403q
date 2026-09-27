@@ -1992,6 +1992,8 @@ subroutine output_rt_NWM(domainId,iGrid)
    use, intrinsic :: ieee_arithmetic      !=====||___WHQ___||=====!
    use netcdf
    use module_UDMAP, only: subbasinID, q_sogw, q_intf  !=====||___WHQ___||=====!
+   use module_UDMAP, only: sfc_in, sfc_out, sfc_dir, sfc_chan, sfc_lake, sfc_bdry, sfc_rem, &   !WHQ5403
+                           sub_dir, sub_exfil
 #ifdef MPP_LAND
      use module_mpp_land
 #endif
@@ -2077,31 +2079,38 @@ subroutine output_rt_NWM(domainId,iGrid)
    if(nlst(domainId)%io_config_outputs .eq. 0) then
       ! All
       !fileMeta%outFlag(:) = [1,1,1,1,1]    !original
-      fileMeta%outFlag(:) = [1,1,1,1,1,1,1,1,1]      !=====||___WHQ___||=====!
+!     fileMeta%outFlag(:) = [1,1,1,1,1,1,1,1,1]      !=====||___WHQ___||=====!
+      fileMeta%outFlag(:) = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]      !WHQ5403
    else if(nlst(domainId)%io_config_outputs .eq. 1) then
       ! Analysis and Assimilation
       !fileMeta%outFlag(:) = [1,1,0,0,0]       !original
-      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+!     fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]      !WHQ5403 fluxes for SedCNP
    else if(nlst(domainId)%io_config_outputs .eq. 2) then
       ! Short Range
       !fileMeta%outFlag(:) = [1,1,0,0,0]       !original
-      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+!     fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]      !WHQ5403 fluxes for SedCNP
    else if(nlst(domainId)%io_config_outputs .eq. 3) then
       ! Medium Range
       !fileMeta%outFlag(:) = [1,1,0,0,0]       !original
-      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+!     fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]      !WHQ5403 fluxes for SedCNP
    else if(nlst(domainId)%io_config_outputs .eq. 4) then
       ! Long Range
       !fileMeta%outFlag(:) = [1,1,0,0,0]       !original
-      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+!     fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]      !WHQ5403 fluxes for SedCNP
    else if(nlst(domainId)%io_config_outputs .eq. 5) then
       ! Retrospective
       !fileMeta%outFlag(:) = [1,1,0,0,0]       !original
-      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+!     fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]      !WHQ5403 fluxes for SedCNP
    else if(nlst(domainId)%io_config_outputs .eq. 6) then
       ! Diagnostics
       !fileMeta%outFlag(:) = [1,1,0,0,0]       !original
-      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+!     fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0]      !=====||___WHQ___||=====!
+      fileMeta%outFlag(:) = [1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1]      !WHQ5403 fluxes for SedCNP
    else
       call nwmCheck(diagFlag,1,'ERROR: Invalid IOC flag provided by namelist file.')
    endif
@@ -2502,6 +2511,25 @@ subroutine output_rt_NWM(domainId,iGrid)
                      varRealTmp = q_sogw(iTmp,jTmp)
                   else if(iTmp2 .eq. 9) then
                      varRealTmp = q_intf(iTmp,jTmp)
+                  !WHQ5403 cell water fluxes for the SedCNP lateral transport
+                  else if(iTmp2 .eq. 10) then
+                     varRealTmp = sfc_in(iTmp,jTmp)
+                  else if(iTmp2 .eq. 11) then
+                     varRealTmp = sfc_out(iTmp,jTmp)
+                  else if(iTmp2 .eq. 12) then
+                     varRealTmp = sfc_dir(iTmp,jTmp)
+                  else if(iTmp2 .eq. 13) then
+                     varRealTmp = sfc_chan(iTmp,jTmp)
+                  else if(iTmp2 .eq. 14) then
+                     varRealTmp = sfc_lake(iTmp,jTmp)
+                  else if(iTmp2 .eq. 15) then
+                     varRealTmp = sfc_bdry(iTmp,jTmp)
+                  else if(iTmp2 .eq. 16) then
+                     varRealTmp = sfc_rem(iTmp,jTmp)
+                  else if(iTmp2 .eq. 17) then
+                     varRealTmp = sub_dir(iTmp,jTmp)
+                  else if(iTmp2 .eq. 18) then
+                     varRealTmp = sub_exfil(iTmp,jTmp)
                   !
                   !=====||___WHQ___||=====!
                   endif

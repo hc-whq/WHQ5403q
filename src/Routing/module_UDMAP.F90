@@ -54,6 +54,23 @@ real,    allocatable, dimension(:,:) :: q_sogw      ![mm] !flux from soil to gw 
 real,    allocatable, dimension(:,:) :: q_intf      ![mm] !interflow
 !
 !=====||___WHQ___||=====!
+!=====||__WHQ5403__||=====!
+!
+! Cell water fluxes of the routing time-step (LSM time-step) for the SedCNP lateral transport
+! of surface/subsurface loads. [mm] = depth over the cell. Directions are the code
+! 3*(dj+1) + (di+1) + 1 of the receiving neighbour (i+di, j+dj), 1..9 (5 = none).
+real,    allocatable, dimension(:,:)   :: sfc_in     ![mm] surface head at the start of overland routing (infiltration excess incl. exfiltration)
+real,    allocatable, dimension(:,:)   :: sfc_out    ![mm] overland outflow to neighbouring cells
+real,    allocatable, dimension(:,:)   :: sfc_dir    ![-]  main direction of the overland outflow (largest accumulated outflow)
+real,    allocatable, dimension(:,:)   :: sfc_chan   ![mm] surface water to the channel (channel cells)
+real,    allocatable, dimension(:,:)   :: sfc_lake   ![mm] surface water to the lake (lake cells)
+real,    allocatable, dimension(:,:)   :: sfc_bdry   ![mm] overland outflow leaving the domain boundary
+real,    allocatable, dimension(:,:)   :: sfc_rem    ![mm] surface head remaining after overland routing
+real,    allocatable, dimension(:,:,:) :: sfc_out9   ![mm] overland outflow by direction (work array for sfc_dir)
+real,    allocatable, dimension(:,:)   :: sub_dir    ![-]  direction of the subsurface (interflow) outflow q_intf
+real,    allocatable, dimension(:,:)   :: sub_exfil  ![mm] subsurface inflow exceeding the soil column capacity (exfiltration to the surface)
+!
+!=====||__WHQ5403__||=====!
 
 contains
     subroutine UDMP_ini(nlinksl,ixrt,jxrt,rtmask, OVRTSWCRT, SUBRTSWCRT,cell_area)
