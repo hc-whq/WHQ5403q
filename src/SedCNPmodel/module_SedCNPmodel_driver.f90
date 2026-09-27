@@ -1291,23 +1291,24 @@ module module_SedCNPmodel_driver
 
 
       !show the current simulation timestep on the screen   !BK20230402 !BK20250616
-      prg = real(itime) / real(domain%ntime_sedcnp) * 100.0
+      !WHQ5403 progress bar moved to the end of the time-step (main_hrldas_driver.F: progress_show)
+      !prg = real(itime) / real(domain%ntime_sedcnp) * 100.0
 #ifdef MPP_LAND
-      if (my_id .eq. io_id) then
+      !if (my_id .eq. io_id) then
 #endif
-         write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') &
-               " WRF-HydroQual running (water quality) ... ", &
-               prg, "% (", itime, " / ", domain%ntime_sedcnp, ")"
-         if (itime == domain%ntime_sedcnp) then  !---BK20250807
-            ! On the final timestep, print a newline, then the success message.
-            write(ERROR_UNIT,*)
-            write(ERROR_UNIT,*) "The model finished successfully"
-         else
-            write(ERROR_UNIT, '(A)', advance='no') char(13)
-         endif
-         call flush(ERROR_UNIT)    !---BK20250807
+         !write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') &
+               !" WRF-HydroQual running (water quality) ... ", &
+               !prg, "% (", itime, " / ", domain%ntime_sedcnp, ")"
+         !if (itime == domain%ntime_sedcnp) then  !---BK20250807
+            !! On the final timestep, print a newline, then the success message.
+            !write(ERROR_UNIT,*)
+            !write(ERROR_UNIT,*) "The model finished successfully"
+         !else
+            !write(ERROR_UNIT, '(A)', advance='no') char(13)
+         !endif
+         !call flush(ERROR_UNIT)    !---BK20250807
 #ifdef MPP_LAND
-      endif
+      !endif
 #endif
       
       if(SedCNPmodel%SedCNP_option == 1) then

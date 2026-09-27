@@ -1846,22 +1846,23 @@ end subroutine land_driver_ini
       !=====||___WHQ___||=====!
       !
       !show the current simulation timestep on the screen
-      prg = real(itime) / real(NTIME) * 100.0
+      !WHQ5403 progress bar moved to the end of the time-step (main_hrldas_driver.F: progress_show)
+      !prg = real(itime) / real(NTIME) * 100.0
 #ifdef MPP_LAND
-      if (my_id .eq. io_id) then
+      !if (my_id .eq. io_id) then
 #endif
-      write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') " WRF-HydroQual running (water-only) ... ", &
-           prg, "% (", itime, " / ", NTIME, ")"
-      if (itime == NTIME) then
-          ! On the final timestep, print a newline, then the success message.
-          write(ERROR_UNIT,*)
-          write(ERROR_UNIT,*) "The model finished successfully"
-      else
-          write(ERROR_UNIT, '(A)', advance='no') char(13)
-      endif
-      call flush(ERROR_UNIT)
+      !write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') " WRF-HydroQual running (water-only) ... ", &
+           !prg, "% (", itime, " / ", NTIME, ")"
+      !if (itime == NTIME) then
+          !! On the final timestep, print a newline, then the success message.
+          !write(ERROR_UNIT,*)
+          !write(ERROR_UNIT,*) "The model finished successfully"
+      !else
+          !write(ERROR_UNIT, '(A)', advance='no') char(13)
+      !endif
+      !call flush(ERROR_UNIT)
 #ifdef MPP_LAND
-      endif
+      !endif
 #endif
       !
       !=====||___WHQ___||=====!
