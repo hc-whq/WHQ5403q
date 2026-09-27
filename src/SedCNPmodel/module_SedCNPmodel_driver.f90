@@ -722,6 +722,7 @@ module module_SedCNPmodel_driver
                                           get1d_ch_int, get2d_int, &
                                           get3d_lsm_int, get_lsm_time, &  !BK20231005 !Y.Kwon20241125 
                                           get_lsm_dx                      !Y.Kwon(20250621)
+      use module_SedCNP_in,         only: get1d_bas_real   !WHQ5403 per-gw-basin variables by basin ID
       use module_SedCNP_out
 !=====||__WHQ5403__||=====!
 !
@@ -912,13 +913,20 @@ module module_SedCNPmodel_driver
       status = get3d_lsm_real("ETRAN", SedCNP_hydro%Etran, &
                         domain%ix, domain%jx, trim(filename))
       !flux from gw bucket outflow to channel - q_gwch [m3/s]
-      status = get1d_ch_real("outflow", SedCNP_hydro%q_gwch, &
-                        domain%nbasin, trim(filename_GW)) !BK20240620
+      !status = get1d_ch_real("outflow", SedCNP_hydro%q_gwch, &
+      !                  domain%nbasin, trim(filename_GW)) !BK20240620
+      !WHQ5403 by gw basin ID (GWOUT has no Basin = -9999 fill row of GWBUCKPARM, so nbasin differs)
+      status = get1d_bas_real("outflow", "feature_id", SedCNP_hydro%q_gwch, &
+                        domain%nbasin, trim(filename_GW))
+      if (status /= 0) call hydro_stop("SedCNPmodel_hydro_input: failed to read outflow in "//trim(filename_GW))
       !2m Air Temp [K]   (Y.Kwon 20240510)
 
       !depth in gw bucket [mm in GWOUT] converted to [m] for SedCNP !BK20260508
-      status = get1d_ch_real("depth", SedCNP_hydro%z_gwbas, &
+      !status = get1d_ch_real("depth", SedCNP_hydro%z_gwbas, &
+      !                  domain%nbasin, trim(filename_GW))
+      status = get1d_bas_real("depth", "feature_id", SedCNP_hydro%z_gwbas, &   !WHQ5403 by gw basin ID
                         domain%nbasin, trim(filename_GW))
+      if (status /= 0) call hydro_stop("SedCNPmodel_hydro_input: failed to read depth in "//trim(filename_GW))
       if (status == 0) then   !---BK20260508
          SedCNP_hydro%z_gwbas = SedCNP_hydro%z_gwbas / 1000.0  ! mm -> m
       endif                   !---BK20260508
@@ -978,14 +986,20 @@ module module_SedCNPmodel_driver
       status = get1d_ch_real("Qdis", SedCNP_hydro%Qdis(:,itime), &
                         domain%nch, trim(filename_CHRT))  !BK20241028 !BK20241102
       !basin area [km2] !Y.Kwon 20230604
-      status = get1d_ch_real("Area_sqkm", SedCNP_hydro%AREAbasin, &
-                        domain%nbasin, trim(filename_subbasinAREA))  !kyh_debug (need to be modified)
+      !status = get1d_ch_real("Area_sqkm", SedCNP_hydro%AREAbasin, &
+      !                  domain%nbasin, trim(filename_subbasinAREA))  !kyh_debug (need to be modified)
+      status = get1d_bas_real("Area_sqkm", "Basin", SedCNP_hydro%AREAbasin, &   !WHQ5403 by gw basin ID
+                        domain%nbasin, trim(filename_subbasinAREA))
       !subbasin bucket height [mm]
-      status = get1d_ch_real("Zmax", SedCNP_hydro%Bucket_max, &
-                        domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      !status = get1d_ch_real("Zmax", SedCNP_hydro%Bucket_max, &
+      !                  domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      status = get1d_bas_real("Zmax", "Basin", SedCNP_hydro%Bucket_max, &   !WHQ5403 by gw basin ID
+                        domain%nbasin, trim(filename_subbasinAREA))
       !initial height of water in the bucket [mm]
-      status = get1d_ch_real("Zinit", SedCNP_hydro%Bucket_ini, &
-                        domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      !status = get1d_ch_real("Zinit", SedCNP_hydro%Bucket_ini, &
+      !                  domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      status = get1d_bas_real("Zinit", "Basin", SedCNP_hydro%Bucket_ini, &   !WHQ5403 by gw basin ID
+                        domain%nbasin, trim(filename_subbasinAREA))
       !channel link ID
       status = get1d_ch_int("link", SedCNP_hydro%linkID, &
                         domain%nch, trim(filename_link)) !Y.Kwon 20230604
@@ -1011,6 +1025,8 @@ module module_SedCNPmodel_driver
 !=====||__WHQ5403__||=====!
       use Module_Date_utilities_rt, only: geth_newdate
       use module_SedCNP_out
+      use module_lakeSedCNP, only: write_Lake_Sed_output, write_Lake_C_output, &   !WHQ5403 lakes/reservoirs
+                                   write_Lake_N_output, write_Lake_P_output
 
       implicit none
 
@@ -1018,6 +1034,7 @@ module module_SedCNPmodel_driver
       real                :: dt     !timestep
       character(len=256)  :: sedCNP_outdir
       character(len=256)  :: filename_SEDOUT, filename_CHSEDOUT
+      character(len=256)  :: filename_LAKE   !WHQ5403 lakes/reservoirs
       character(len=256)  :: filename_SOCOUT, filename_AQCOUT, filename_GWCOUT 
       character(len=256)  :: filename_SONOUT, filename_AQNOUT
       character(len=256)  :: filename_WSoCOUT, filename_CHCOUT
@@ -1188,6 +1205,23 @@ module module_SedCNPmodel_driver
                         '.CHPOUT_DOMAIN1'
       call write_Ch_P_output(filename_CHPOUT)
 
+      !=====||__WHQ5403__||=====!
+      !create LAKESEDOUT, LAKECOUT, LAKENOUT, LAKEPOUT filenames (lakes/reservoirs: lake water balance
+      !and the CHSEDOUT/CHCOUT/CHNOUT/CHPOUT variables at the lake outlet links)
+      if (lake%active) then
+         filename_LAKE = trim(sedCNP_outdir)//'/'//&
+                         trim(dateSedCNP%olddate(1:4))//&
+                         trim(dateSedCNP%olddate(6:7))//&
+                         trim(dateSedCNP%olddate(9:10))//&
+                         trim(dateSedCNP%olddate(12:13))//&
+                         trim(dateSedCNP%olddate(15:16))
+         call write_Lake_Sed_output(trim(filename_LAKE)//'.LAKESEDOUT_DOMAIN1')
+         call write_Lake_C_output(trim(filename_LAKE)//'.LAKECOUT_DOMAIN1')
+         call write_Lake_N_output(trim(filename_LAKE)//'.LAKENOUT_DOMAIN1')
+         call write_Lake_P_output(trim(filename_LAKE)//'.LAKEPOUT_DOMAIN1')
+      endif
+      !=====||__WHQ5403__||=====!
+
       !get newdate for next timestep
       call geth_newdate(dateSedCNP%newdate, dateSedCNP%olddate, nint(dt))
       dateSedCNP%olddate = dateSedCNP%newdate
@@ -1221,6 +1255,7 @@ module module_SedCNPmodel_driver
       use module_AlloDeallocate
       use ISO_FORTRAN_ENV, ONLY: ERROR_UNIT, int64
       use hashtable, only: hash_t   !WHQ5403 link ID -> channel index mapping
+      use module_lakeSedCNP, only: Lake_Init, Lake_UpdateHydro   !WHQ5403 lakes/reservoirs
 #ifdef MPP_LAND
       use module_mpp_land, only: mpp_land_sync, my_id, io_id
 #endif
@@ -1358,6 +1393,13 @@ module module_SedCNPmodel_driver
                call hash_table%clear()
             end block
          endif
+
+         !=====||__WHQ5403__||=====!
+         ! lakes/reservoirs: identify lake links (first time-step) and set the lake water
+         ! balance and the outlet-link hydraulics (every time-step, after the hydro inputs)
+         if (itime == 1) call Lake_Init()
+         call Lake_UpdateHydro(itime)
+         !=====||__WHQ5403__||=====!
          
          ! Calculate basin-wide averages once per timestep. This is called after
          ! hydro inputs are updated and before any CNP processing for the timestep.
@@ -1910,6 +1952,9 @@ module module_SedCNPmodel_driver
             !endif                              !--- BK20250924 commented out 
             !--- BK20250701
 
+            !WHQ5403 internal lake links are not simulated (the lake is simulated at its outlet link)
+            if (lake%typel(ich) == 2) cycle
+
             !channel sediment
             call channelSedTransport(ich,itime)    !BK20231016  !BK20231029  !BK20240512 !BK20241101
 
@@ -1939,6 +1984,7 @@ module module_SedCNPmodel_driver
          !do ich = 0, domain%nch - 1  !1,domain%nch    !BK20240523
          do ich = 1, domain%nch  !BK20240613
             !chid = SedCNP_hydro%linkID(ich)  !BK20240512 !BK20241101
+            if (lake%typel(ich) == 2) cycle   !WHQ5403 internal lake links are not simulated
             call UpdateCNP_Ch(ich)
          enddo  
 

@@ -820,7 +820,8 @@ contains
 
          DO i = 1, domain%ix
             DO j = 1, domain%jx
-               IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+               !IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+               IF (lake%gwbasin_lat(i,j) == gwid) THEN   !WHQ5403 lateral inflows of internal lake links -> lake outlet
 
                   ! surface runoff
                   Ch_LPONsurf0(ich) = Ch_LPONsurf0(ich) + So_LPONsurf0(i,j)
@@ -848,10 +849,14 @@ contains
          END DO
 
          ! groundwater inflow
-         Ch_LDONgwch0(ich) = Gw_LDONgwch0(gwid)
-         Ch_RDONgwch0(ich) = Gw_RDONgwch0(gwid)
-         Ch_NH4gwch0(ich)  = Gw_NH4gwch0(gwid)
-         Ch_NO3gwch0(ich)  = Gw_NO3gwch0(gwid)
+         !Ch_LDONgwch0(ich) = Gw_LDONgwch0(gwid)
+         Ch_LDONgwch0(ich) = gw_to_ch(Gw_LDONgwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
+         !Ch_RDONgwch0(ich) = Gw_RDONgwch0(gwid)
+         Ch_RDONgwch0(ich) = gw_to_ch(Gw_RDONgwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
+         !Ch_NH4gwch0(ich)  = Gw_NH4gwch0(gwid)
+         Ch_NH4gwch0(ich)  = gw_to_ch(Gw_NH4gwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
+         !Ch_NO3gwch0(ich)  = Gw_NO3gwch0(gwid)
+         Ch_NO3gwch0(ich)  = gw_to_ch(Gw_NO3gwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
 
          ! update storage
          Ch_LPON(ich) = Ch_LPON(ich) + Ch_LPONsurf0(ich)
@@ -1167,20 +1172,42 @@ contains
       Ch_DENIT(ich) = Ch_NO3_init - RK4SOL
 
       ! --- outflow: downstream discharge
-      if (WStorage > 0.0 .and. Qdsch > 0.0) then
-         dPI = 1.0 - EXP(-2.3 * (Qdsch * dt) / (WStorage + Qdsch * dt))
-      else
-         dPI = 0.0
-      endif
+      !if (WStorage > 0.0 .and. Qdsch > 0.0) then
+         !dPI = 1.0 - EXP(-2.3 * (Qdsch * dt) / (WStorage + Qdsch * dt))
+      !else
+         !dPI = 0.0
+      !endif
+      !Ch_ALGNdsch(ich,:) = Ch_ALGN_init(:) * dPI
+      !Ch_ZOONdsch(ich)   = Ch_ZOON_init * dPI
+      !Ch_LPONdsch(ich)   = Ch_LPON_init * dPI
+      !Ch_RPONdsch(ich)   = Ch_RPON_init * dPI
+      !Ch_MBMNdsch(ich)   = Ch_MBMN_init * dPI
+      !Ch_LDONdsch(ich)   = Ch_LDON_init * dPI
+      !Ch_RDONdsch(ich)   = Ch_RDON_init * dPI
+      !Ch_NH4dsch(ich)    = Ch_NH4_init * dPI
+      !Ch_NO3dsch(ich)    = Ch_NO3_init * dPI
+
+      !=====||__WHQ5403__||=====!
+      ! discharge fraction with the eta parameters of the CNPparams file (as in module_Carbon);
+      ! the hard-coded eta = 2.3 above ignored etaNH4dsch/etaNO3dsch
+      !POM
+      dPI = calc_dPI(etaPOMdsch, Qdsch * dt, WStorage)
       Ch_ALGNdsch(ich,:) = Ch_ALGN_init(:) * dPI
       Ch_ZOONdsch(ich)   = Ch_ZOON_init * dPI
       Ch_LPONdsch(ich)   = Ch_LPON_init * dPI
       Ch_RPONdsch(ich)   = Ch_RPON_init * dPI
       Ch_MBMNdsch(ich)   = Ch_MBMN_init * dPI
+      !DOM
+      dPI = calc_dPI(etaDOMdsch, Qdsch * dt, WStorage)
       Ch_LDONdsch(ich)   = Ch_LDON_init * dPI
       Ch_RDONdsch(ich)   = Ch_RDON_init * dPI
+      !NH4
+      dPI = calc_dPI(etaNH4dsch, Qdsch * dt, WStorage)
       Ch_NH4dsch(ich)    = Ch_NH4_init * dPI
+      !NO3
+      dPI = calc_dPI(etaNO3dsch, Qdsch * dt, WStorage)
       Ch_NO3dsch(ich)    = Ch_NO3_init * dPI
+      !=====||__WHQ5403__||=====!
 
       ! === B. SCALE FLUXES TO ENSURE MASS CONSERVATION
 

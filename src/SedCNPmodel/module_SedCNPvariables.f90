@@ -477,6 +477,69 @@ module module_SedCNPvariables
   !end type CNP_struct
   !type(CNP_struct) cnp
 
+!=====||__WHQ5403__||=====!
+!
+  ! Lakes/reservoirs (level-pool lakes of the hydro model, lake_option = 1).
+  ! Each lake is simulated as a completely mixed reactor that reuses the channel
+  ! sediment/CNP equations at its outlet link (TYPEL 1), whose geometry is replaced
+  ! by a vertically-walled square of the lake area (see module_lakeSedCNP).
+  type lakeSedCNP_struct
+     logical              :: active = .false.  ! .true. if any lake is simulated
+     integer              :: nlake = 0         ! number of lakes (LAKEPARM.nc)
+     integer, allocatable :: lake_id(:)        ! lake ID (LAKEPARM lake_id = Route_Link NHDWaterbodyComID)
+     integer, allocatable :: outlet_ich(:)     ! channel index of the lake outlet link (TYPEL 1)
+     real(8), allocatable :: area(:)           ! lake surface area [m2] (LAKEPARM LkArea)
+     real(8), allocatable :: bottomE(:)        ! lake bottom elevation [m] (LAKEPARM BottomE)
+     real(8), allocatable :: wse(:)            ! water surface elevation [m] (LAKEOUT)
+     real(8), allocatable :: depth(:)          ! mean water depth = wse - bottomE [m]
+     real(8), allocatable :: storage(:)        ! water storage = area * depth [m3]
+     real(8), allocatable :: inflow(:)         ! lake inflow [m3 s-1] (LAKEOUT)
+     real(8), allocatable :: outflow(:)        ! lake outflow [m3 s-1] (LAKEOUT)
+     integer, allocatable :: typel(:)          ! (nch) 0: none, 1: lake outlet, 2: internal lake link, 3: inflow to lake
+     integer, allocatable :: lake_of_ich(:)    ! (nch) lake index for TYPEL 1/2 (lake receiving the flow for TYPEL 3), 0 otherwise
+     integer, allocatable :: gwbasin_lat(:,:)  ! (ixrt,jxrt) gwbasin for lateral inflows to channels; cells draining
+                                               ! to internal lake links are reassigned to the gwbasin of the lake outlet
+     integer, allocatable :: gw_lake(:)        ! (nbasin) lake index if the gw basin drains to an internal lake link
+                                               ! (and differs from the outlet's gw basin), 0 otherwise
+  end type lakeSedCNP_struct
+  type(lakeSedCNP_struct) lake
+!
+!=====||__WHQ5403__||=====!
 
+contains
+
+!=====||__WHQ5403__||=====!
+!
+  ! Groundwater-to-channel flux for channel ich: gw_flux(gwid of ich), plus, for a lake
+  ! outlet link, the fluxes of the gw basins of the internal links of that lake.
+  real(8) function gw_to_ch(gw_flux, ich)
+     implicit none
+     real(8), intent(in) :: gw_flux(:)
+     integer, intent(in) :: ich
+     integer             :: gwid
+
+     gw_to_ch = gw_flux(domain%gwid_ch(ich))
+     if (lake%active) then
+        if (lake%typel(ich) == 1) then
+           do gwid = 1, domain%nbasin
+              if (lake%gw_lake(gwid) == lake%lake_of_ich(ich)) gw_to_ch = gw_to_ch + gw_flux(gwid)
+           enddo
+        endif
+     endif
+  end function gw_to_ch
+
+  ! Channel index that receives the inputs assigned to channel ich: the lake outlet link
+  ! for an internal lake link (TYPEL 2), ich itself otherwise.
+  integer function lake_ich(ich)
+     implicit none
+     integer, intent(in) :: ich
+
+     lake_ich = ich
+     if (lake%active .and. ich > 0) then
+        if (lake%typel(ich) == 2) lake_ich = lake%outlet_ich(lake%lake_of_ich(ich))
+     endif
+  end function lake_ich
+!
+!=====||__WHQ5403__||=====!
 
 end module module_SedCNPvariables

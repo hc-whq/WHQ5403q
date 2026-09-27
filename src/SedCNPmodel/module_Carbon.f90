@@ -646,7 +646,8 @@ contains
 
          DO i = 1, domain%ix
             DO j = 1, domain%jx
-               IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+               !IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+               IF (lake%gwbasin_lat(i,j) == gwid) THEN   !WHQ5403 lateral inflows of internal lake links -> lake outlet
 
                   ! surface runoff
                   Ch_LPOCsurf0(ich) = Ch_LPOCsurf0(ich) + So_LPOCsurf0(i,j)
@@ -666,8 +667,10 @@ contains
          END DO
 
          ! groundwater inflow
-         Ch_LDOCgwch0(ich) = Gw_LDOCgwch0(gwid)
-         Ch_RDOCgwch0(ich) = Gw_RDOCgwch0(gwid)
+         !Ch_LDOCgwch0(ich) = Gw_LDOCgwch0(gwid)
+         Ch_LDOCgwch0(ich) = gw_to_ch(Gw_LDOCgwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
+         !Ch_RDOCgwch0(ich) = Gw_RDOCgwch0(gwid)
+         Ch_RDOCgwch0(ich) = gw_to_ch(Gw_RDOCgwch0, ich)   !WHQ5403 incl. gw basins of internal lake links
 
          ! update storage
          Ch_LPOC(ich) = Ch_LPOC(ich) + Ch_LPOCsurf0(ich)
@@ -942,14 +945,16 @@ contains
       ! end if
       
       !POM
-      dPI = calc_dPI(etaPOMdsch, Qdsch, WStorage)  !BK20260302
+      !dPI = calc_dPI(etaPOMdsch, Qdsch, WStorage)  !BK20260302
+      dPI = calc_dPI(etaPOMdsch, Qdsch * dt, WStorage)  !WHQ5403 outflow volume [m3] (Qdsch [m3/s] * dt), as in module_Nitrogen/Phosphorus
       Ch_ALGCdsch(ich,:) = Ch_ALGC_init(:) * dPI
       Ch_ZOOCdsch(ich)   = Ch_ZOOC_init * dPI
       Ch_LPOCdsch(ich)   = Ch_LPOC_init * dPI
       Ch_RPOCdsch(ich)   = Ch_RPOC_init * dPI
       Ch_MBMCdsch(ich)   = Ch_MBMC_init * dPI
       !DOM, DIC
-      dPI = calc_dPI(etaDOMdsch, Qdsch, WStorage)  !BK20260302
+      !dPI = calc_dPI(etaDOMdsch, Qdsch, WStorage)  !BK20260302
+      dPI = calc_dPI(etaDOMdsch, Qdsch * dt, WStorage)  !WHQ5403 outflow volume [m3] (Qdsch [m3/s] * dt), as in module_Nitrogen/Phosphorus
       Ch_LDOCdsch(ich)   = Ch_LDOC_init * dPI
       Ch_RDOCdsch(ich)   = Ch_RDOC_init * dPI
       Ch_DICdsch(ich)    = Ch_DIC_init * dPI

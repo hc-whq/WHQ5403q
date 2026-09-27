@@ -842,6 +842,44 @@ module module_SedCNP_in
 
   end function get1d_ch_int
 
+!=====||__WHQ5403__||=====!
+!
+  !> @brief Reads a per-gw-basin variable and stores it by gw basin ID: out_value(id) = value of the
+  !! feature whose ID (id_name, e.g. feature_id in GWOUT, Basin in GWBUCKPARM) is id.
+  !! The files need not have nbasin features in basin-ID order (e.g. GWBUCKPARM.nc may contain a
+  !! fill row with Basin = -9999 that the hydro model drops from GWOUT); features whose ID is
+  !! outside 1..nbasin are ignored and out_value is left unchanged where no feature maps.
+  !! Returns 0 on success.
+  integer function get1d_bas_real(var_name,id_name,out_value,nbasin,fileName)
+
+     implicit none
+
+     character(len=*),               intent(in)    :: var_name, id_name, fileName
+     integer,                        intent(in)    :: nbasin
+     real(8), dimension(nbasin),     intent(inout) :: out_value
+     integer                                       :: nf, k, status
+     integer, allocatable                          :: ids(:)
+     real(8), allocatable                          :: buf(:)
+
+     get1d_bas_real = -1
+     nf = 0
+     call get_feature_id(nf, trim(fileName))
+     if (nf <= 0) return
+     allocate(ids(nf), buf(nf))
+     status = get1d_ch_int(trim(id_name), ids, nf, trim(fileName))
+     if (status == 0) status = get1d_ch_real(trim(var_name), buf, nf, trim(fileName))
+     if (status == 0) then
+        do k = 1, nf
+           if (ids(k) >= 1 .and. ids(k) <= nbasin) out_value(ids(k)) = buf(k)
+        enddo
+        get1d_bas_real = 0
+     endif
+     deallocate(ids, buf)
+
+  end function get1d_bas_real
+!
+!=====||__WHQ5403__||=====!
+
   
   integer function get2d_int(var_name,out_value,ix,jx,fileName)
 
@@ -1312,6 +1350,7 @@ module module_SedCNP_in
                   exit
                endif
             enddo
+            ich_pnt = lake_ich(ich_pnt)   !WHQ5403 inputs to an internal lake link -> lake outlet link
        
             ! All processes must initialize for interpolation to reset state
             year0 = SedCNPmodel%SedCNP_start_year
@@ -1719,6 +1758,7 @@ module module_SedCNP_in
                   exit
                endif
             enddo
+            ich_absdis = lake_ich(ich_absdis)   !WHQ5403 inputs to an internal lake link -> lake outlet link
 
             ! All processes must initialize for interpolation to reset state
             year0 = SedCNPmodel%SedCNP_start_year
