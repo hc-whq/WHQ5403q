@@ -96,6 +96,9 @@ module config_base
      integer            :: SedCNP_khour
      integer            :: SedCNP_kday = -999
      logical            :: SedCNP_compound_channel
+     integer            :: SedCNP_lateral_option = 1   !WHQ5403 lateral (surface/interflow/groundwater) loads to channels
+                                                       !  1: along the hydro-model paths (cell-to-cell transport, RTOUT fluxes)
+                                                       !  0: sum over the gw basin of each link (previous method)
      character(len=256) :: LDASOUT_dir, WHQOUT_dir, WHQIN_dir, &
                            CiniSo_file, NiniSo_file, PiniSo_file, &
                            CiniGw_file, NiniGw_file, PiniGw_file, &
@@ -103,6 +106,11 @@ module config_base
                            CH_PNTSRC_file, CH_ABSDIS_file, CNPinputs_file, &
                            SOILPSF_file, CNPparams_file, config_paddy_file, &
                            SEDparams_file
+     !WHQ5403 SedCNP restart files (NetCDF): input file names and output interval [hours]
+     character(len=256) :: restart_filename_soc = '', restart_filename_son = '', restart_filename_sop = '', &
+                           restart_filename_gwc = '', restart_filename_gwn = '', restart_filename_gwp = '', &
+                           restart_filename_chc = '', restart_filename_chn = '', restart_filename_chp = ''
+     integer            :: whq_restart_dt = -9999   ! <= 0: restart files only at the end of the simulation
 
   end type SedCNPmodel_OFFLINE_
   !
@@ -1086,6 +1094,7 @@ contains
     integer            :: SedCNP_kday  = -999
     integer            :: SedCNP_timestep
     logical            :: SedCNP_compound_channel
+    integer            :: SedCNP_lateral_option = 1   !WHQ5403
     character(len=256) :: LDASOUT_dir, WHQOUT_dir, WHQIN_dir, &
                           CiniSo_file, NiniSo_file, PiniSo_file, &
                           CiniGw_file, NiniGw_file, PiniGw_file, &
@@ -1093,6 +1102,11 @@ contains
                           CH_PNTSRC_file, CH_ABSDIS_file, CNPinputs_file, &
                           SOILPSF_file, CNPparams_file, config_paddy_file, &
                           SEDparams_file
+    !WHQ5403 SedCNP restart files (NetCDF)
+    character(len=256) :: RESTART_FILENAME_SOC = '', RESTART_FILENAME_SON = '', RESTART_FILENAME_SOP = '', &
+                          RESTART_FILENAME_GWC = '', RESTART_FILENAME_GWN = '', RESTART_FILENAME_GWP = '', &
+                          RESTART_FILENAME_CHC = '', RESTART_FILENAME_CHN = '', RESTART_FILENAME_CHP = ''
+    integer            :: WHQ_RESTART_DT = -9999
     !
     !=====||___WHQ___||=====!
 
@@ -1131,13 +1145,18 @@ contains
          SedCNP_start_year, SedCNP_start_month, SedCNP_start_day, &
          SedCNP_start_hour, SedCNP_start_min, SedCNP_khour, SedCNP_kday, &
          SedCNP_timestep, SedCNP_compound_channel, &
+         SedCNP_lateral_option, &   !WHQ5403
          LDASOUT_dir, WHQOUT_dir, WHQIN_dir, &
          CiniSo_file, NiniSo_file, PiniSo_file, &
          CiniGw_file, NiniGw_file, PiniGw_file, &
          CiniCh_file, NiniCh_file, PiniCh_file, &
          CH_PNTSRC_file, CH_ABSDIS_file, &
          CNPinputs_file, SOILPSF_file, &
-         CNPparams_file, config_paddy_file, SEDparams_file
+         CNPparams_file, config_paddy_file, SEDparams_file, &
+         RESTART_FILENAME_SOC, RESTART_FILENAME_SON, RESTART_FILENAME_SOP, &   !WHQ5403
+         RESTART_FILENAME_GWC, RESTART_FILENAME_GWN, RESTART_FILENAME_GWP, &   !WHQ5403
+         RESTART_FILENAME_CHC, RESTART_FILENAME_CHN, RESTART_FILENAME_CHP, &   !WHQ5403
+         WHQ_RESTART_DT                                                        !WHQ5403
     !
     !=====||___WHQ___||=====!
 
@@ -1334,6 +1353,9 @@ contains
     SedCNPmodel%SedCNP_khour            = SedCNP_khour
     SedCNPmodel%SedCNP_timestep         = SedCNP_timestep
     SedCNPmodel%SedCNP_compound_channel = SedCNP_compound_channel
+    SedCNPmodel%SedCNP_lateral_option   = SedCNP_lateral_option   !WHQ5403
+    if (SedCNP_lateral_option /= 0 .and. SedCNP_lateral_option /= 1) &
+         call hydro_stop("whq.namelist ERROR: SedCNP_lateral_option must be 0 or 1")
     SedCNPmodel%LDASOUT_dir             = trim(LDASOUT_dir)
     SedCNPmodel%WHQOUT_dir              = trim(WHQOUT_dir)
     SedCNPmodel%WHQIN_dir               = trim(WHQIN_dir)
@@ -1353,6 +1375,17 @@ contains
     SedCNPmodel%CNPparams_file          = trim(CNPparams_file)
     SedCNPmodel%config_paddy_file       = trim(config_paddy_file)
     SedCNPmodel%SEDparams_file          = trim(SEDparams_file)
+    !WHQ5403 SedCNP restart files (NetCDF)
+    SedCNPmodel%restart_filename_soc = trim(RESTART_FILENAME_SOC)
+    SedCNPmodel%restart_filename_son = trim(RESTART_FILENAME_SON)
+    SedCNPmodel%restart_filename_sop = trim(RESTART_FILENAME_SOP)
+    SedCNPmodel%restart_filename_gwc = trim(RESTART_FILENAME_GWC)
+    SedCNPmodel%restart_filename_gwn = trim(RESTART_FILENAME_GWN)
+    SedCNPmodel%restart_filename_gwp = trim(RESTART_FILENAME_GWP)
+    SedCNPmodel%restart_filename_chc = trim(RESTART_FILENAME_CHC)
+    SedCNPmodel%restart_filename_chn = trim(RESTART_FILENAME_CHN)
+    SedCNPmodel%restart_filename_chp = trim(RESTART_FILENAME_CHP)
+    SedCNPmodel%whq_restart_dt       = WHQ_RESTART_DT
     !
     !=====||___WHQ___||=====!
 

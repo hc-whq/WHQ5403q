@@ -26,12 +26,13 @@ module module_SedCNPmodel_driver
    subroutine SedCNP_driver_ini(NTIME_out)
 
       use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via ReadCNPini/module_SedCNP_in below; a redundant
       ! direct "use config_base" here triggers a gfortran diamond-import type mismatch.
+      !use config_base, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use CNPparams
       !use CNPvariables
       use ReadCNPini
@@ -56,12 +57,14 @@ module module_SedCNPmodel_driver
       khour = SedCNPmodel%SedCNP_khour
 
       if ((khour < 0) .and. (SedCNPmodel%SedCNP_kday < 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("FATAL ERROR: In module_SedCNPmodel_driver SedCNP_driver_ini() - "// &
                "Namelist error: Either KHOUR or KDAY must be defined.")')
          call hydro_stop("FATAL ERROR: In SedCNP_driver_ini() - KHOUR or KDAY must be defined.")
       else if (( khour < 0 ) .and. (SedCNPmodel%SedCNP_kday > 0)) then
          khour = SedCNPmodel%SedCNP_kday * 24
       else if ((khour > 0) .and. (SedCNPmodel%SedCNP_kday > 0)) then
+         call progress_clear()   !WHQ5403
          write(*, '("WARNING: In SedCNP_driver_ini() - KHOUR and KDAY both defined. Using KHOUR.")')
       endif
       N_TIME = khour*3600./nint(dts)
@@ -81,6 +84,7 @@ module module_SedCNPmodel_driver
       call get_global_iswater(trim(filename_ixjxnsl), domain%ISWATER) !BK20251208
       !If failed (still default -999), default to 16 and warn
       if (domain%ISWATER == -999) then
+         call progress_clear()   !WHQ5403
          print*, "WARNING: ISWATER not found in input file, using default 16"
          domain%ISWATER = 16
       endif
@@ -643,11 +647,12 @@ module module_SedCNPmodel_driver
       use module_SedCNPvariables
       use module_SedCNP_in
       use module_SedCNP_out
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via module_SedCNP_in/module_SedCNP_out above.
+      !use config_base, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 
       implicit none
 
@@ -698,6 +703,22 @@ module module_SedCNPmodel_driver
       status = get2d_int("LINKID", SedCNP_hydro%linkID_grid, &
                         domain%ixrt, domain%jxrt, trim(geo_finegrid_flnm))   !BK20240616
 
+      !=====||__WHQ5403__||=====!
+      ! Fulldom_hires.nc and GWBASINS.nc are stored north-up (y decreasing), whereas the LSM/RTOUT
+      ! outputs read by SedCNP are south-up (the model grid, as read by the hydro model). Without
+      ! this flip, the gw basins and stream pixels were overlaid on the mirrored LSM cells.
+      if (is_north_up(trim(filename_subbasinID))) then
+         SedCNP_hydro%subbasinID = SedCNP_hydro%subbasinID(:, domain%jxrt:1:-1)
+         call progress_clear()   !WHQ5403
+         write(6,*) 'INFO: SedCNP: ', trim(filename_subbasinID), ' is north-up; flipped to the model grid'
+      endif
+      if (is_north_up(trim(geo_finegrid_flnm))) then
+         SedCNP_hydro%linkID_grid = SedCNP_hydro%linkID_grid(:, domain%jxrt:1:-1)
+         call progress_clear()   !WHQ5403
+         write(6,*) 'INFO: SedCNP: ', trim(geo_finegrid_flnm), ' is north-up; flipped to the model grid'
+      endif
+      !=====||__WHQ5403__||=====!
+
       !---WHQ
       filename_soil= './DOMAIN/soil_properties.nc'
       !soil water content at saturation [m3 m-3]
@@ -720,12 +741,14 @@ module module_SedCNPmodel_driver
                                           get1d_ch_int, get2d_int, &
                                           get3d_lsm_int, get_lsm_time, &  !BK20231005 !Y.Kwon20241125 
                                           get_lsm_dx                      !Y.Kwon(20250621)
+      use module_SedCNP_in,         only: get1d_bas_real   !WHQ5403 per-gw-basin variables by basin ID
       use module_SedCNP_out
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via module_SedCNP_out above.
+      !use config_base,              only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use Module_Date_utilities_rt, only: geth_newdate
 
       implicit none
@@ -909,13 +932,20 @@ module module_SedCNPmodel_driver
       status = get3d_lsm_real("ETRAN", SedCNP_hydro%Etran, &
                         domain%ix, domain%jx, trim(filename))
       !flux from gw bucket outflow to channel - q_gwch [m3/s]
-      status = get1d_ch_real("outflow", SedCNP_hydro%q_gwch, &
-                        domain%nbasin, trim(filename_GW)) !BK20240620
+      !status = get1d_ch_real("outflow", SedCNP_hydro%q_gwch, &
+      !                  domain%nbasin, trim(filename_GW)) !BK20240620
+      !WHQ5403 by gw basin ID (GWOUT has no Basin = -9999 fill row of GWBUCKPARM, so nbasin differs)
+      status = get1d_bas_real("outflow", "feature_id", SedCNP_hydro%q_gwch, &
+                        domain%nbasin, trim(filename_GW))
+      if (status /= 0) call hydro_stop("SedCNPmodel_hydro_input: failed to read outflow in "//trim(filename_GW))
       !2m Air Temp [K]   (Y.Kwon 20240510)
 
       !depth in gw bucket [mm in GWOUT] converted to [m] for SedCNP !BK20260508
-      status = get1d_ch_real("depth", SedCNP_hydro%z_gwbas, &
+      !status = get1d_ch_real("depth", SedCNP_hydro%z_gwbas, &
+      !                  domain%nbasin, trim(filename_GW))
+      status = get1d_bas_real("depth", "feature_id", SedCNP_hydro%z_gwbas, &   !WHQ5403 by gw basin ID
                         domain%nbasin, trim(filename_GW))
+      if (status /= 0) call hydro_stop("SedCNPmodel_hydro_input: failed to read depth in "//trim(filename_GW))
       if (status == 0) then   !---BK20260508
          SedCNP_hydro%z_gwbas = SedCNP_hydro%z_gwbas / 1000.0  ! mm -> m
       endif                   !---BK20260508
@@ -945,7 +975,13 @@ module module_SedCNPmodel_driver
       
       !channel velocity [m/s]
       status = get1d_ch_real("velocity",SedCNP_hydro%chVa,domain%nch,trim(filename_CHRT))
-      !status = get1d_ch_real("velocity",chVa_in,domain%nch,trim(filename_CHRT)) !BK20250907    
+      !status = get1d_ch_real("velocity",chVa_in,domain%nch,trim(filename_CHRT)) !BK20250907
+
+      !WHQ5403 links inside lakes (lake_option > 0) have fill values (-9999) for streamflow and
+      ! velocity in CHRTOUT; treat them as no flow so that the fill values are neither used in the
+      ! channel calculations nor added to the upstream inflow of the downstream link
+      where (SedCNP_hydro%q_dsch < 0.0) SedCNP_hydro%q_dsch = 0.0
+      where (SedCNP_hydro%chVa < 0.0) SedCNP_hydro%chVa = 0.0
    
       ! !Qpnt [m3 s-1]
       ! status = get1d_ch_real("Qpnt",buf1,domain%nch,trim(filename_CHRT))  !BK20241028
@@ -969,14 +1005,20 @@ module module_SedCNPmodel_driver
       status = get1d_ch_real("Qdis", SedCNP_hydro%Qdis(:,itime), &
                         domain%nch, trim(filename_CHRT))  !BK20241028 !BK20241102
       !basin area [km2] !Y.Kwon 20230604
-      status = get1d_ch_real("Area_sqkm", SedCNP_hydro%AREAbasin, &
-                        domain%nbasin, trim(filename_subbasinAREA))  !kyh_debug (need to be modified)
+      !status = get1d_ch_real("Area_sqkm", SedCNP_hydro%AREAbasin, &
+      !                  domain%nbasin, trim(filename_subbasinAREA))  !kyh_debug (need to be modified)
+      status = get1d_bas_real("Area_sqkm", "Basin", SedCNP_hydro%AREAbasin, &   !WHQ5403 by gw basin ID
+                        domain%nbasin, trim(filename_subbasinAREA))
       !subbasin bucket height [mm]
-      status = get1d_ch_real("Zmax", SedCNP_hydro%Bucket_max, &
-                        domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      !status = get1d_ch_real("Zmax", SedCNP_hydro%Bucket_max, &
+      !                  domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      status = get1d_bas_real("Zmax", "Basin", SedCNP_hydro%Bucket_max, &   !WHQ5403 by gw basin ID
+                        domain%nbasin, trim(filename_subbasinAREA))
       !initial height of water in the bucket [mm]
-      status = get1d_ch_real("Zinit", SedCNP_hydro%Bucket_ini, &
-                        domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      !status = get1d_ch_real("Zinit", SedCNP_hydro%Bucket_ini, &
+      !                  domain%nbasin, trim(filename_subbasinAREA))  !BK20240510
+      status = get1d_bas_real("Zinit", "Basin", SedCNP_hydro%Bucket_ini, &   !WHQ5403 by gw basin ID
+                        domain%nbasin, trim(filename_subbasinAREA))
       !channel link ID
       status = get1d_ch_int("link", SedCNP_hydro%linkID, &
                         domain%nch, trim(filename_link)) !Y.Kwon 20230604
@@ -994,13 +1036,16 @@ module module_SedCNPmodel_driver
    subroutine SedCNPmodel_output(itime)
 
       use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel already visible via module_SedCNP_out below.
+      !use config_base, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use Module_Date_utilities_rt, only: geth_newdate
       use module_SedCNP_out
+      use module_lakeSedCNP, only: write_Lake_Sed_output, write_Lake_C_output, &   !WHQ5403 lakes/reservoirs
+                                   write_Lake_N_output, write_Lake_P_output
 
       implicit none
 
@@ -1008,6 +1053,7 @@ module module_SedCNPmodel_driver
       real                :: dt     !timestep
       character(len=256)  :: sedCNP_outdir
       character(len=256)  :: filename_SEDOUT, filename_CHSEDOUT
+      character(len=256)  :: filename_LAKE   !WHQ5403 lakes/reservoirs
       character(len=256)  :: filename_SOCOUT, filename_AQCOUT, filename_GWCOUT 
       character(len=256)  :: filename_SONOUT, filename_AQNOUT
       character(len=256)  :: filename_WSoCOUT, filename_CHCOUT
@@ -1024,12 +1070,14 @@ module module_SedCNPmodel_driver
 
       ! --- Check if the output directory is specified
       if (len_trim(sedCNP_outdir) == 0) then
+         call progress_clear()   !WHQ5403
          write(*,*) 'FATAL ERROR: WHQOUT_dir is not specified in the hydro.namelist.'
          call hydro_stop('FATAL ERROR: WHQOUT_dir not specified.')
       endif
 
       call system('mkdir -p '//trim(sedCNP_outdir), status=mkdir_status)
       if (mkdir_status /= 0) then
+         call progress_clear()   !WHQ5403
          write(*,*) 'FATAL ERROR: Could not create output directory: ', trim(sedCNP_outdir)
          call hydro_stop('FATAL ERROR: Could not create output directory.')
       endif
@@ -1178,6 +1226,23 @@ module module_SedCNPmodel_driver
                         '.CHPOUT_DOMAIN1'
       call write_Ch_P_output(filename_CHPOUT)
 
+      !=====||__WHQ5403__||=====!
+      !create LAKESEDOUT, LAKECOUT, LAKENOUT, LAKEPOUT filenames (lakes/reservoirs: lake water balance
+      !and the CHSEDOUT/CHCOUT/CHNOUT/CHPOUT variables at the lake outlet links)
+      if (lake%active) then
+         filename_LAKE = trim(sedCNP_outdir)//'/'//&
+                         trim(dateSedCNP%olddate(1:4))//&
+                         trim(dateSedCNP%olddate(6:7))//&
+                         trim(dateSedCNP%olddate(9:10))//&
+                         trim(dateSedCNP%olddate(12:13))//&
+                         trim(dateSedCNP%olddate(15:16))
+         call write_Lake_Sed_output(trim(filename_LAKE)//'.LAKESEDOUT_DOMAIN1')
+         call write_Lake_C_output(trim(filename_LAKE)//'.LAKECOUT_DOMAIN1')
+         call write_Lake_N_output(trim(filename_LAKE)//'.LAKENOUT_DOMAIN1')
+         call write_Lake_P_output(trim(filename_LAKE)//'.LAKEPOUT_DOMAIN1')
+      endif
+      !=====||__WHQ5403__||=====!
+
       !get newdate for next timestep
       call geth_newdate(dateSedCNP%newdate, dateSedCNP%olddate, nint(dt))
       dateSedCNP%olddate = dateSedCNP%newdate
@@ -1191,13 +1256,14 @@ module module_SedCNPmodel_driver
 
    subroutine SedCNP_driver_exe(itime)
 
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
       ! SedCNPmodel is already visible via ReadCNPini/WriteCNPini/CNPmain/module_SedCNP_in
       ! below. A direct "use config_base" here, combined with any sibling module that
       ! itself uses config_base, triggers a gfortran diamond-import derived-type mismatch.
+      !use config_base,           only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use module_SedCNPvariables
       use module_overlandSed,    only: overlandSedTransport
       use module_channelSed,     only: channelSedTransport
@@ -1208,7 +1274,11 @@ module module_SedCNPmodel_driver
       !use CNPvariables
       use CNPparams      !Y.Kwon 20230312
       use module_AlloDeallocate
-      use ISO_FORTRAN_ENV, ONLY: ERROR_UNIT
+      use ISO_FORTRAN_ENV, ONLY: ERROR_UNIT, int64
+      use hashtable, only: hash_t   !WHQ5403 link ID -> channel index mapping
+      use module_lakeSedCNP, only: Lake_Init, Lake_UpdateHydro   !WHQ5403 lakes/reservoirs
+      use module_lateralTransport, only: Lateral_Transport_Init, Lateral_Loads   !WHQ5403 lateral loads to channels
+      use module_CNPrestart, only: Write_CNP_Restart, Read_CNP_Restart, CNP_Restart_Due   !WHQ5403 NetCDF restart files
 #ifdef MPP_LAND
       use module_mpp_land, only: mpp_land_sync, my_id, io_id
 #endif
@@ -1228,23 +1298,24 @@ module module_SedCNPmodel_driver
 
 
       !show the current simulation timestep on the screen   !BK20230402 !BK20250616
-      prg = real(itime) / real(domain%ntime_sedcnp) * 100.0
+      !WHQ5403 progress bar moved to the end of the time-step (main_hrldas_driver.F: progress_show)
+      !prg = real(itime) / real(domain%ntime_sedcnp) * 100.0
 #ifdef MPP_LAND
-      if (my_id .eq. io_id) then
+      !if (my_id .eq. io_id) then
 #endif
-         write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') &
-               " WRF-HydroQual running (water quality) ... ", &
-               prg, "% (", itime, " / ", domain%ntime_sedcnp, ")"
-         if (itime == domain%ntime_sedcnp) then  !---BK20250807
-            ! On the final timestep, print a newline, then the success message.
-            write(ERROR_UNIT,*)
-            write(ERROR_UNIT,*) "The model finished successfully"
-         else
-            write(ERROR_UNIT, '(A)', advance='no') char(13)
-         endif
-         call flush(ERROR_UNIT)    !---BK20250807
+         !write(ERROR_UNIT, '(A,F6.2,A,I0,A,I0,A)', advance='no') &
+               !" WRF-HydroQual running (water quality) ... ", &
+               !prg, "% (", itime, " / ", domain%ntime_sedcnp, ")"
+         !if (itime == domain%ntime_sedcnp) then  !---BK20250807
+            !! On the final timestep, print a newline, then the success message.
+            !write(ERROR_UNIT,*)
+            !write(ERROR_UNIT,*) "The model finished successfully"
+         !else
+            !write(ERROR_UNIT, '(A)', advance='no') char(13)
+         !endif
+         !call flush(ERROR_UNIT)    !---BK20250807
 #ifdef MPP_LAND
-      endif
+      !endif
 #endif
       
       if(SedCNPmodel%SedCNP_option == 1) then
@@ -1252,6 +1323,7 @@ module module_SedCNPmodel_driver
          !will be developed later
          !stop "FATAL ERROR: SedCNP_option = 1 does not work in the current version"
          if (my_id .eq. io_id) then  !BK20250803
+            call progress_clear()   !WHQ5403
             write(ERROR_UNIT,*) "WARNING: SedCNP_option = 1 is not yet implemented. Skipping."
          endif
          return
@@ -1260,6 +1332,7 @@ module module_SedCNPmodel_driver
          !will be developed later
          !stop "FATAL ERROR: SedCNP_option = 2 does not work in the current version"
          if (my_id .eq. io_id) then  !BK20250803
+            call progress_clear()   !WHQ5403
             write(ERROR_UNIT,*) "WARNING: SedCNP_option = 2 is not yet implemented. Skipping."
          endif
          return            
@@ -1282,36 +1355,79 @@ module module_SedCNPmodel_driver
                   endif
                end do
             end do
-
-            !--- BK20250701
-            ! create mapping from channel ID to a single, (firstly-identified) 'representative' grid 
-            ! coordinates (i,j) and groundwater basin ID (gwid). 
-            ! Initialize with -9999 to identify unmapped links later
-            domain%chid_i = -9999
-            domain%chid_j = -9999
-            domain%gwid_ch = -9999
-
-            do j = 1, domain%jxrt
-               do i = 1, domain%ixrt
-                  if(SedCNP_hydro%linkID_grid(i,j) >= 1) then 
-                     chid = SedCNP_hydro%linkID_grid(i,j)
-                     !--- BK20250701
-                     if ((chid > 0) .and. &
-                        (chid <= domain%nch) .and. &
-                        (domain%chid_i(chid) == -9999)) then
-                        domain%gwid_ch(chid) = SedCNP_hydro%gwbasin(i,j)
-                        domain%chid_i(chid) = i
-                        domain%chid_j(chid) = j
-                     endif
-                     !--- BK20250701
-                  endif
-               end do
-            end do
          endif
 
          !sediment + CNP; need water outputs
          !get water outputs
          call SedCNPmodel_hydro_input(itime)
+
+         if (itime == 1) then
+            !--- BK20250701
+            ! create mapping from channel index (ich) to a single, (firstly-identified) 'representative' grid
+            ! coordinates (i,j) and groundwater basin ID (gwid).
+            ! Initialize with -9999 to identify unmapped links later
+            !=====||__WHQ5403__||=====!
+            ! Link IDs in Route_Link.nc need not be contiguous (1..nch), so they cannot be used as
+            ! array indices. As in the hydro routing (module_RT.F90), grid LINKID values are converted
+            ! to the channel index (position in Route_Link.nc) via a hash table of link IDs.
+            ! Must follow SedCNPmodel_hydro_input, which reads SedCNP_hydro%linkID.
+            !=====||__WHQ5403__||=====!
+            domain%chid_i = -9999
+            domain%chid_j = -9999
+            domain%gwid_ch = -9999
+
+            !=====||__WHQ5403__||=====! original code (link ID used as array index; moved from before SedCNPmodel_hydro_input)
+            !do j = 1, domain%jxrt
+            !   do i = 1, domain%ixrt
+            !      if(SedCNP_hydro%linkID_grid(i,j) >= 1) then
+            !         chid = SedCNP_hydro%linkID_grid(i,j)
+            !         !--- BK20250701
+            !         if ((chid > 0) .and. &
+            !            (chid <= domain%nch) .and. &
+            !            (domain%chid_i(chid) == -9999)) then
+            !            domain%gwid_ch(chid) = SedCNP_hydro%gwbasin(i,j)
+            !            domain%chid_i(chid) = i
+            !            domain%chid_j(chid) = j
+            !         endif
+            !         !--- BK20250701
+            !      endif
+            !   end do
+            !end do
+            !=====||__WHQ5403__||=====!
+
+            block
+               type(hash_t) :: hash_table
+               integer(kind=int64) :: val
+               logical :: found
+
+               call hash_table%set_all_idx(int(SedCNP_hydro%linkID, int64), domain%nch)
+               do j = 1, domain%jxrt
+                  do i = 1, domain%ixrt
+                     if(SedCNP_hydro%linkID_grid(i,j) >= 1) then
+                        call hash_table%get(int(SedCNP_hydro%linkID_grid(i,j), int64), val, found)
+                        if (found) then
+                           ich = int(val)
+                           if (domain%chid_i(ich) == -9999) then
+                              domain%gwid_ch(ich) = SedCNP_hydro%gwbasin(i,j)
+                              domain%chid_i(ich) = i
+                              domain%chid_j(ich) = j
+                           endif
+                        endif
+                     endif
+                  end do
+               end do
+               call hash_table%clear()
+            end block
+         endif
+
+         !=====||__WHQ5403__||=====!
+         ! lakes/reservoirs: identify lake links (first time-step) and set the lake water
+         ! balance and the outlet-link hydraulics (every time-step, after the hydro inputs)
+         if (itime == 1) call Lake_Init()
+         if (itime == 1) call Lateral_Map_Init()   ! lateral inflows from gw basins to channels (after Lake_Init)
+         if (itime == 1) call Lateral_Transport_Init()
+         call Lake_UpdateHydro(itime)
+         !=====||__WHQ5403__||=====!
          
          ! Calculate basin-wide averages once per timestep. This is called after
          ! hydro inputs are updated and before any CNP processing for the timestep.
@@ -1712,6 +1828,7 @@ module module_SedCNPmodel_driver
             !call ReadCNPini_Aq () !BK20230319
             call ReadCNPini_Gw () !BK20230319
             call ReadCNPini_Ch () !BK20230319
+            call Read_CNP_Restart()   !WHQ5403 NetCDF restart files (RESTART_FILENAME_* in whq.namelist)
 
             ! --- initialize current state with initial conditions  
             ! --- to prevent mass balance error at first step   !BK20251216
@@ -1803,6 +1920,8 @@ module module_SedCNPmodel_driver
          !overland
          do i = 1,domain%ix
             do j = 1,domain%jx
+               !WHQ5403 skip cells without LSM outputs (fill value -9999 in LDASOUT, e.g. outside the domain)
+               if (SedCNP_hydro%vgtyp(i,j) < 0.0) cycle
                !overland sediment
                call overlandSedTransport(i,j)
                !Soil CNP
@@ -1816,6 +1935,9 @@ module module_SedCNPmodel_driver
             call RunCNP_Gw(gwid)  !BK20240613
          enddo
 
+         !WHQ5403 lateral (surface runoff, interflow) loads of this time-step to the channel links
+         call Lateral_Loads(itime)
+
          !channel
          if (itime == 1) then  !BK20231114
             !call ReadSBID_CH()   !BK20231011  !BK20240525
@@ -1827,7 +1949,8 @@ module module_SedCNPmodel_driver
             write (5110,'(A12,",",A12,",",A12)') 'ich','chid','gwid'
             do ich = 1, domain%nch
                chid = SedCNP_hydro%linkID(ich)
-               gwid = domain%gwid_ch(chid)
+               !gwid = domain%gwid_ch(chid)
+               gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
                write (5110,'(I12,",",I12,",",I12)') ich,chid,gwid
             enddo
             close (5110)
@@ -1861,6 +1984,9 @@ module module_SedCNPmodel_driver
             !endif                              !--- BK20250924 commented out 
             !--- BK20250701
 
+            !WHQ5403 internal lake links are not simulated (the lake is simulated at its outlet link)
+            if (lake%typel(ich) == 2) cycle
+
             !channel sediment
             call channelSedTransport(ich,itime)    !BK20231016  !BK20231029  !BK20240512 !BK20241101
 
@@ -1890,8 +2016,13 @@ module module_SedCNPmodel_driver
          !do ich = 0, domain%nch - 1  !1,domain%nch    !BK20240523
          do ich = 1, domain%nch  !BK20240613
             !chid = SedCNP_hydro%linkID(ich)  !BK20240512 !BK20241101
+            if (lake%typel(ich) == 2) cycle   !WHQ5403 internal lake links are not simulated
             call UpdateCNP_Ch(ich)
          enddo  
+
+         !WHQ5403 NetCDF restart files every WHQ_RESTART_DT hours and at the end of the simulation
+         ! (before SedCNPmodel_output, which advances dateSedCNP%olddate to the next time-step)
+         if (CNP_Restart_Due(itime)) call Write_CNP_Restart()
 
          !write output
          call SedCNPmodel_output(itime) 
@@ -1900,10 +2031,11 @@ module module_SedCNPmodel_driver
          if (itime == domain%ntime_sedcnp) then   !Y.Kwon 20230316
             !domain%areaxy = SedCNPmodel%SedCNP_dx * SedCNPmodel%SedCNP_dx  !BK20230319
             domain%areaxy = SedCNP_hydro%dx(1) * SedCNP_hydro%dx(1)        !Y.Kwon(20250621)
-            call WriteCNPini_So()
+            !WHQ5403 text initial condition files replaced by the NetCDF restart files (Write_CNP_Restart)
+            !call WriteCNPini_So()
             !call WriteCNPini_Aq()
-            call WriteCNPini_Gw()
-            call WriteCNPini_Ch()
+            !call WriteCNPini_Gw()
+            !call WriteCNPini_Ch()
             call Deallocate_Temp()      !20231018
          endif
 
@@ -1912,11 +2044,265 @@ module module_SedCNPmodel_driver
          !will be developed later
          !stop "FATAL ERROR: SedCNP_option = 4 does not work in the current version"
          if (my_id .eq. io_id) then  !BK20250803
+            call progress_clear()   !WHQ5403
             write(ERROR_UNIT,*) "WARNING: SedCNP_option = 4 is not yet implemented. Skipping."
          endif
          return            
       endif
 
    end subroutine SedCNP_driver_exe
+
+!=====||__WHQ5403__||=====!
+!
+   !> @brief Builds the distribution of the lateral inflows (surface runoff, interflow, groundwater)
+   !! from the gw basins to the channels as in the hydro model (simp_gw_buck, module_GW_baseflow):
+   !! the flux of gw basin b is divided uniformly among its stream pixels, so link k receives the
+   !! fraction w(k,b) = npix(k,b)/npix(b). Stream pixels of internal lake links are counted for the
+   !! lake outlet link. Also lists the LSM cells of each gw basin and writes diagnostics.
+   !! Called once, after the channel-to-grid mapping and Lake_Init.
+   subroutine Lateral_Map_Init()
+
+      use module_SedCNPvariables
+      use module_SedCNP_in, only: get2d_int, is_north_up
+      use SedCNP_config,    only: SedCNPmodel
+      use hashtable,        only: hash_t
+      use ISO_FORTRAN_ENV,  only: int64
+
+      implicit none
+
+      integer, allocatable :: npix_b(:)          ! stream pixels of each gw basin
+      integer, allocatable :: nbas_k(:)          ! gw basins of each link
+      integer, allocatable :: nlnk_b(:)          ! links of each gw basin
+      integer, allocatable :: pk(:), pb(:)       ! (link, basin) of each stream pixel (pk = 0: link not found)
+      integer, allocatable :: fill(:), msk(:,:)
+      integer              :: i, j, k, b, n, m, npix, nnz, status, ncell
+      integer              :: nb_nostream, nb_nostream_in, ncell_nostream, nlink_multi, nbas_multi
+      integer              :: nlink_nobas, npix_nolink
+      logical              :: found_b, has_msk
+      real(8)              :: wsum_min, wsum_max, wsum
+      type(hash_t)         :: hash_table
+      integer(kind=int64)  :: val
+      logical              :: found
+
+      ! --- stream pixels: (link, gw basin)
+      npix = count(SedCNP_hydro%linkID_grid >= 1)
+      allocate(pk(npix), pb(npix), npix_b(domain%nbasin))
+      npix_b = 0
+      npix_nolink = 0
+      call hash_table%set_all_idx(int(SedCNP_hydro%linkID, int64), domain%nch)
+      n = 0
+      do j = 1, domain%jxrt
+         do i = 1, domain%ixrt
+            if (SedCNP_hydro%linkID_grid(i,j) >= 1) then
+               n = n + 1
+               pb(n) = SedCNP_hydro%gwbasin(i,j)   ! AGGFACTRT = 1 (routing grid = LSM grid)
+               pk(n) = 0
+               call hash_table%get(int(SedCNP_hydro%linkID_grid(i,j), int64), val, found)
+               if (found) pk(n) = lake_ich(int(val))
+               if (pb(n) >= 1 .and. pb(n) <= domain%nbasin) then
+                  npix_b(pb(n)) = npix_b(pb(n)) + 1
+                  if (pk(n) == 0) npix_nolink = npix_nolink + 1
+               else
+                  pb(n) = 0
+               endif
+            endif
+         enddo
+      enddo
+      call hash_table%clear()
+
+      ! --- CSR: basins and weights of each link
+      allocate(nbas_k(domain%nch), nlnk_b(domain%nbasin), lat_ptr(domain%nch+1), fill(domain%nch))
+      allocate(lat_gw(npix), lat_w(npix))
+      nbas_k = 0
+      do n = 1, npix
+         if (pk(n) > 0 .and. pb(n) > 0) nbas_k(pk(n)) = nbas_k(pk(n)) + 1   ! upper bound (duplicates)
+      enddo
+      lat_ptr(1) = 1
+      do k = 1, domain%nch
+         lat_ptr(k+1) = lat_ptr(k) + nbas_k(k)
+      enddo
+      fill = 0
+      lat_w = 0.0d0
+      do n = 1, npix
+         k = pk(n); b = pb(n)
+         if (k == 0 .or. b == 0) cycle
+         found_b = .false.
+         do m = lat_ptr(k), lat_ptr(k) + fill(k) - 1
+            if (lat_gw(m) == b) then
+               lat_w(m) = lat_w(m) + 1.0d0
+               found_b = .true.
+               exit
+            endif
+         enddo
+         if (.not. found_b) then
+            m = lat_ptr(k) + fill(k)
+            lat_gw(m) = b
+            lat_w(m) = 1.0d0
+            fill(k) = fill(k) + 1
+         endif
+      enddo
+      ! compact (remove the duplicate slots) and normalise: w = npix(k,b)/npix(b)
+      nnz = 0
+      do k = 1, domain%nch
+         m = lat_ptr(k)
+         lat_ptr(k) = nnz + 1
+         do n = m, m + fill(k) - 1
+            nnz = nnz + 1
+            lat_gw(nnz) = lat_gw(n)
+            lat_w(nnz)  = lat_w(n) / real(npix_b(lat_gw(n)), 8)
+         enddo
+      enddo
+      lat_ptr(domain%nch+1) = nnz + 1
+
+      ! --- SedCNP_lateral_option = 0 (previous method): each link takes its own gw basin gwid_ch
+      !     (weight 1, whole basin), and a lake outlet link also the gw basins of the internal links
+      if (SedCNPmodel%SedCNP_lateral_option == 0) then
+         nnz = 0
+         do k = 1, domain%nch
+            lat_ptr(k) = nnz + 1
+            if (lake%active) then
+               if (lake%typel(k) == 2) cycle
+            endif
+            if (domain%gwid_ch(k) >= 1 .and. domain%gwid_ch(k) <= domain%nbasin) then
+               nnz = nnz + 1
+               lat_gw(nnz) = domain%gwid_ch(k)
+               lat_w(nnz)  = 1.0d0
+            endif
+            if (lake%active) then
+               if (lake%typel(k) == 1) then
+                  do m = 1, domain%nch
+                     if (lake%typel(m) /= 2 .or. lake%lake_of_ich(m) /= lake%lake_of_ich(k)) cycle
+                     b = domain%gwid_ch(m)
+                     if (b < 1 .or. b > domain%nbasin .or. b == domain%gwid_ch(k)) cycle
+                     if (any(lat_gw(lat_ptr(k):nnz) == b)) cycle
+                     nnz = nnz + 1
+                     lat_gw(nnz) = b
+                     lat_w(nnz)  = 1.0d0
+                  enddo
+               endif
+            endif
+         enddo
+         lat_ptr(domain%nch+1) = nnz + 1
+      endif
+
+      ! --- LSM cells of each gw basin
+      allocate(bas_ptr(domain%nbasin+1))
+      ncell = count(SedCNP_hydro%gwbasin >= 1 .and. SedCNP_hydro%gwbasin <= domain%nbasin)
+      allocate(bas_ci(ncell), bas_cj(ncell))
+      nlnk_b = 0   ! temporarily: cells per basin
+      do j = 1, domain%jx
+         do i = 1, domain%ix
+            b = SedCNP_hydro%gwbasin(i,j)
+            if (b >= 1 .and. b <= domain%nbasin) nlnk_b(b) = nlnk_b(b) + 1
+         enddo
+      enddo
+      bas_ptr(1) = 1
+      do b = 1, domain%nbasin
+         bas_ptr(b+1) = bas_ptr(b) + nlnk_b(b)
+      enddo
+      nlnk_b = 0
+      do j = 1, domain%jx
+         do i = 1, domain%ix
+            b = SedCNP_hydro%gwbasin(i,j)
+            if (b >= 1 .and. b <= domain%nbasin) then
+               m = bas_ptr(b) + nlnk_b(b)
+               bas_ci(m) = i
+               bas_cj(m) = j
+               nlnk_b(b) = nlnk_b(b) + 1
+            endif
+         enddo
+      enddo
+
+      ! --- diagnostics
+      allocate(msk(domain%ixrt,domain%jxrt))
+      msk = 1
+      status = get2d_int("basn_msk", msk, domain%ixrt, domain%jxrt, './DOMAIN/Fulldom_hires.nc')
+      has_msk = (status == 0)
+      if (has_msk .and. is_north_up('./DOMAIN/Fulldom_hires.nc')) msk = msk(:, domain%jxrt:1:-1)   ! to the model grid (south-up)
+
+      nlnk_b = 0
+      do k = 1, domain%nch
+         do m = lat_ptr(k), lat_ptr(k+1) - 1
+            nlnk_b(lat_gw(m)) = nlnk_b(lat_gw(m)) + 1
+         enddo
+      enddo
+      nlink_multi = 0; nlink_nobas = 0
+      do k = 1, domain%nch
+         if (lake%active) then
+            if (lake%typel(k) == 2) cycle
+         endif
+         n = lat_ptr(k+1) - lat_ptr(k)
+         if (n > 1)  nlink_multi = nlink_multi + 1
+         if (n == 0) nlink_nobas = nlink_nobas + 1
+      enddo
+      nbas_multi = count(nlnk_b > 1)
+      nb_nostream = 0; nb_nostream_in = 0; ncell_nostream = 0
+      wsum_min = huge(1.0d0); wsum_max = 0.0d0
+      do b = 1, domain%nbasin
+         if (bas_ptr(b+1) == bas_ptr(b)) cycle   ! basin without cells (e.g. fill row of GWBUCKPARM)
+         if (npix_b(b) == 0) then
+            nb_nostream = nb_nostream + 1
+            ncell_nostream = ncell_nostream + (bas_ptr(b+1) - bas_ptr(b))
+            if (has_msk) then
+               do m = bas_ptr(b), bas_ptr(b+1) - 1
+                  if (msk(bas_ci(m), bas_cj(m)) > 0) then
+                     nb_nostream_in = nb_nostream_in + 1
+                     call progress_clear()   !WHQ5403
+                     write(6,*) 'WARNING: SedCNP gw basin ', b, ' is inside the basin mask but has no stream pixel;', &
+                                ' its lateral inflows reach no channel (as in the hydro model)'
+                     exit
+                  endif
+               enddo
+            endif
+         else
+            wsum = 0.0d0
+            do k = 1, domain%nch
+               do m = lat_ptr(k), lat_ptr(k+1) - 1
+                  if (lat_gw(m) == b) wsum = wsum + lat_w(m)
+               enddo
+            enddo
+            wsum_min = min(wsum_min, wsum); wsum_max = max(wsum_max, wsum)
+         endif
+      enddo
+
+      if (SedCNPmodel%SedCNP_lateral_option == 1) then
+         call progress_clear()   !WHQ5403
+         write(6,'(A)')      ' INFO: SedCNP lateral inflows (SedCNP_lateral_option = 1): groundwater from gw basins with the'
+         call progress_clear()   !WHQ5403
+         write(6,'(A)')      '       hydro-model weights; surface runoff and interflow along the hydro-model cell paths'
+      else
+         call progress_clear()   !WHQ5403
+         write(6,'(A)')      ' INFO: SedCNP lateral inflows (SedCNP_lateral_option = 0): sum over the gw basin of each link'
+      endif
+      call progress_clear()   !WHQ5403
+      write(6,'(A)')         ' INFO: SedCNP gw basins and channel links (stream pixels):'
+      call progress_clear()   !WHQ5403
+      write(6,'(A,I8,A,I8)') '   gw basins with cells              : ', count(bas_ptr(2:) > bas_ptr(:domain%nbasin)), &
+                             '   channel links: ', domain%nch
+      call progress_clear()   !WHQ5403
+      write(6,'(A,I8)')      '   gw basins draining to >1 link     : ', nbas_multi
+      call progress_clear()   !WHQ5403
+      write(6,'(A,I8)')      '   links receiving from >1 gw basin  : ', nlink_multi
+      call progress_clear()   !WHQ5403
+      write(6,'(A,I8)')      '   links without gw basin            : ', nlink_nobas
+      call progress_clear()   !WHQ5403
+      write(6,'(A,I8,A,I8,A)') '   gw basins without stream pixels   : ', nb_nostream, '  (', ncell_nostream, ' cells)'
+      if (has_msk) then
+         call progress_clear()   !WHQ5403
+         write(6,'(A,I8,A,I8)') '     outside the basin mask (basn_msk): ', nb_nostream - nb_nostream_in, &
+                                '   inside: ', nb_nostream_in
+      else
+         call progress_clear()   !WHQ5403
+         write(6,'(A)')      '     basn_msk not found in Fulldom_hires.nc: mask check skipped'
+      endif
+      if (npix_nolink > 0) write(6,'(A,I8)') '   stream pixels of links not in Route_Link: ', npix_nolink
+      if (wsum_max > 0.0d0 .and. SedCNPmodel%SedCNP_lateral_option == 1) &
+         write(6,'(A,F10.6,A,F10.6)') '   sum of groundwater weights per basin (min/max): ', wsum_min, ' / ', wsum_max
+
+      deallocate(pk, pb, npix_b, nbas_k, nlnk_b, fill, msk)
+
+   end subroutine Lateral_Map_Init
+!
+!=====||__WHQ5403__||=====!
 
 end module module_SedCNPmodel_driver

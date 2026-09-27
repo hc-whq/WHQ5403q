@@ -22,11 +22,12 @@ module module_overlandSed
 
    !use module_SedCNPvariables, only: overSed, SedCNP_hydro
    use module_SedCNPvariables  !BK20240619
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base,            only: SedCNPmodel
    use SedCNP_config,          only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
    use module_hydro_stop,      only: HYDRO_stop !BK20251130
    !use NOAHMP_TABLES, only: ISWATER_TABLE   !BK20251208 Reverted
 

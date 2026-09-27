@@ -27,7 +27,8 @@ integer, parameter :: numLdasVars = 130      !=====||___WHQ___||=====!
 integer, parameter :: numLdasVars_crocus_off = 98
 
 !integer, parameter :: numRtDomainVars = 5   !original
-integer, parameter :: numRtDomainVars = 9    !=====||___WHQ___||=====!
+!integer, parameter :: numRtDomainVars = 9    !=====||___WHQ___||=====!
+integer, parameter :: numRtDomainVars = 18   !WHQ5403 + cell water fluxes for the SedCNP lateral transport
 integer, parameter :: numLakeVars = 2
 integer, parameter :: numChGrdVars = 1
 integer, parameter :: numLsmVars = 14
@@ -1879,13 +1880,13 @@ subroutine initRtDomainDict(rtDomainDict,procId,diagFlag)
 
    !=====||___WHQ___||=====!
    !
-   rtDomainDict%varNames(:) = [character(len=64) :: "zwattablrt","sfcheadsubrt","QSTRMVOLRT",&
-                               "QBDRYRT","SOIL_M","SO8LD_Vmax","subbasinID","q_sogw","q_intf"]
-   rtDomainDict%longName(:) = [character(len=64) :: "depth to saturation, rounded to highest saturated layer",&
-                               "surface head","channel inflow",&
-                               "accumulated value of the boundary flux, + into domain - out of domain",&
-                               "volumetric soil moisture","land slope","subbasinID","flux from soil to gw gucket",&
-                               "inter flow"]
+   !rtDomainDict%varNames(:) = [character(len=64) :: "zwattablrt","sfcheadsubrt","QSTRMVOLRT",&
+   !                            "QBDRYRT","SOIL_M","SO8LD_Vmax","subbasinID","q_sogw","q_intf"]
+   !rtDomainDict%longName(:) = [character(len=64) :: "depth to saturation, rounded to highest saturated layer",&
+   !                            "surface head","channel inflow",&
+   !                            "accumulated value of the boundary flux, + into domain - out of domain",&
+   !                            "volumetric soil moisture","land slope","subbasinID","flux from soil to gw gucket",&
+   !                            "inter flow"]
    !
    !=====||___WHQ___||=====!
 
@@ -1901,17 +1902,50 @@ subroutine initRtDomainDict(rtDomainDict,procId,diagFlag)
 
    !=====||___WHQ___||=====!
    !
-   rtDomainDict%units(:) = [character(len=64) :: "m","mm","mm","mm","m3 m-3","-","-","mm","mm"]
-   rtDomainDict%scaleFactor(:) = [0.1,1.0,1.0,1.0,0.01,1.0,1.0,1.0,1.0]
-   rtDomainDict%addOffset(:) = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-   rtDomainDict%outFlag(:) = [0,0,0,0,0,0,0,0,0]
-   rtDomainDict%timeZeroFlag(:) = [1,1,1,1,1,1,1,1,1]
-   rtDomainDict%missingReal(:) = [-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0]
-   rtDomainDict%fillReal(:) = [-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0]
-   rtDomainDict%validMinDbl(:) = [0.0d0,0.0d0,0.0d0,-1000000.0d0,0.0d0,0.0d0,0.0d0,0.0d0,0.0d0]
-   rtDomainDict%validMaxDbl(:) = [100.0d0,1000000.0d0,1000000.0d0,1000000.0d0, 100.0d0, 100.0d0,100.0d0,100.0d0,100.0d0]
+   !rtDomainDict%units(:) = [character(len=64) :: "m","mm","mm","mm","m3 m-3","-","-","mm","mm"]
+   !rtDomainDict%scaleFactor(:) = [0.1,1.0,1.0,1.0,0.01,1.0,1.0,1.0,1.0]
+   !rtDomainDict%addOffset(:) = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+   !rtDomainDict%outFlag(:) = [0,0,0,0,0,0,0,0,0]
+   !rtDomainDict%timeZeroFlag(:) = [1,1,1,1,1,1,1,1,1]
+   !rtDomainDict%missingReal(:) = [-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0]
+   !rtDomainDict%fillReal(:) = [-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0]
+   !rtDomainDict%validMinDbl(:) = [0.0d0,0.0d0,0.0d0,-1000000.0d0,0.0d0,0.0d0,0.0d0,0.0d0,0.0d0]
+   !rtDomainDict%validMaxDbl(:) = [100.0d0,1000000.0d0,1000000.0d0,1000000.0d0, 100.0d0, 100.0d0,100.0d0,100.0d0,100.0d0]
    !
    !=====||___WHQ___||=====!
+   !=====||__WHQ5403__||=====! 9 WHQ variables + 9 cell water fluxes for the SedCNP lateral transport
+   rtDomainDict%varNames(:) = [character(len=64) :: "zwattablrt","sfcheadsubrt","QSTRMVOLRT",&
+                               "QBDRYRT","SOIL_M","SO8LD_Vmax","subbasinID","q_sogw","q_intf",&
+                               "sfc_in","sfc_out","sfc_dir","sfc_chan","sfc_lake","sfc_bdry","sfc_rem",&
+                               "sub_dir","sub_exfil"]
+   rtDomainDict%longName(:) = [character(len=64) :: "depth to saturation, rounded to highest saturated layer",&
+                               "surface head","channel inflow",&
+                               "accumulated value of the boundary flux, + into domain - out of domain",&
+                               "volumetric soil moisture","land slope","subbasinID","flux from soil to gw gucket",&
+                               "inter flow",&
+                               "surface head at the start of overland routing",&
+                               "overland outflow to neighbouring cells",&
+                               "main direction of overland outflow 3*(dj+1)+(di+1)+1",&
+                               "surface water to channel","surface water to lake",&
+                               "overland outflow across the domain boundary",&
+                               "surface head after overland routing",&
+                               "direction of inter flow 3*(dj+1)+(di+1)+1",&
+                               "subsurface inflow exfiltrated to the surface"]
+   rtDomainDict%units(:) = [character(len=64) :: "m","mm","mm","mm","m3 m-3","-","-","mm","mm",&
+                            "mm","mm","-","mm","mm","mm","mm","-","mm"]
+   rtDomainDict%scaleFactor(:) = 1.0
+   rtDomainDict%scaleFactor(1) = 0.1
+   rtDomainDict%scaleFactor(5) = 0.01
+   rtDomainDict%addOffset(:) = 0.0
+   rtDomainDict%outFlag(:) = 0
+   rtDomainDict%timeZeroFlag(:) = 1
+   rtDomainDict%missingReal(:) = -9999.0
+   rtDomainDict%fillReal(:) = -9999.0
+   rtDomainDict%validMinDbl(:) = [0.0d0,0.0d0,0.0d0,-1000000.0d0,0.0d0,0.0d0,0.0d0,0.0d0,0.0d0,&
+                                  0.0d0,0.0d0,0.0d0,0.0d0,0.0d0,0.0d0,0.0d0,0.0d0,0.0d0]
+   rtDomainDict%validMaxDbl(:) = [100.0d0,1000000.0d0,1000000.0d0,1000000.0d0,100.0d0,100.0d0,100.0d0,100.0d0,100.0d0,&
+                                  1000000.0d0,1000000.0d0,9.0d0,1000000.0d0,1000000.0d0,1000000.0d0,1000000.0d0,9.0d0,1000000.0d0]
+   !=====||__WHQ5403__||=====!
 
    ! Loop through and calculate missing/fill/min/max values that will be placed
    ! into the NetCDF attributes after scale_factor/add_offset are applied.

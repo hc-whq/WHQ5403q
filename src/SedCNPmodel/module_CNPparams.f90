@@ -28,11 +28,12 @@ module CNPparams
 
       !use CNPvariables
       use module_SedCNPvariables !Y.Kwon
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+      !use config_base, only: SedCNPmodel !BK20251130
       use SedCNP_config, only: SedCNPmodel !BK20251130
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
       use module_hydro_stop, only:HYDRO_stop !BK20251130
 
       implicit none

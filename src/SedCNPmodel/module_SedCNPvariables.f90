@@ -20,6 +20,8 @@
 
 module module_SedCNPvariables
 
+  use module_progress, only: progress_clear   !WHQ5403 erase the progress bar before messages
+
   implicit none
 
   !domain
@@ -31,9 +33,9 @@ module module_SedCNPvariables
      integer              :: ntime_sedcnp !Y.Kwon20230316
      integer              :: nsl          !number of soil layers (default nsl = 4)
      !integer, allocatable :: sbid_cell(:,:) !subbasin ID (sbid) for grid cell (i,j)  !BK20231011
-     integer, allocatable :: gwid_ch(:)   !gw basin ID (gwid) for a given channel ID     !BK20231011 !BK20240726
-     integer, allocatable :: chid_i(:)   ! Grid i-index for each channel ID  !BK20250701
-     integer, allocatable :: chid_j(:)   ! Grid j-index for each channel ID  !BK20250701
+     integer, allocatable :: gwid_ch(:)   !gw basin ID (gwid) for a given channel index (ich)     !BK20231011 !BK20240726 !WHQ5403
+     integer, allocatable :: chid_i(:)   ! Grid i-index for each channel index (ich)  !BK20250701 !WHQ5403
+     integer, allocatable :: chid_j(:)   ! Grid j-index for each channel index (ich)  !BK20250701 !WHQ5403
      !integer, allocatable :: x_ch(:)      !x-coord. of the representative cell for a given channel  !BK20231029  !BK20240509
      !integer, allocatable :: y_ch(:)      !y-coord. of the representative cell for a given channel  !BK20231029  !BK20240509
      real(8)              :: areaxy       !cell area (m2)
@@ -477,6 +479,140 @@ module module_SedCNPvariables
   !end type CNP_struct
   !type(CNP_struct) cnp
 
+!=====||__WHQ5403__||=====!
+!
+  ! Lakes/reservoirs (level-pool lakes of the hydro model, lake_option = 1).
+  ! Each lake is simulated as a completely mixed reactor that reuses the channel
+  ! sediment/CNP equations at its outlet link (TYPEL 1), whose geometry is replaced
+  ! by a vertically-walled square of the lake area (see module_lakeSedCNP).
+  type lakeSedCNP_struct
+     logical              :: active = .false.  ! .true. if any lake is simulated
+     integer              :: nlake = 0         ! number of lakes (LAKEPARM.nc)
+     integer, allocatable :: lake_id(:)        ! lake ID (LAKEPARM lake_id = Route_Link NHDWaterbodyComID)
+     integer, allocatable :: outlet_ich(:)     ! channel index of the lake outlet link (TYPEL 1)
+     real(8), allocatable :: area(:)           ! lake surface area [m2] (LAKEPARM LkArea)
+     real(8), allocatable :: bottomE(:)        ! lake bottom elevation [m] (LAKEPARM BottomE)
+     real(8), allocatable :: wse(:)            ! water surface elevation [m] (LAKEOUT)
+     real(8), allocatable :: depth(:)          ! mean water depth = wse - bottomE [m]
+     real(8), allocatable :: storage(:)        ! water storage = area * depth [m3]
+     real(8), allocatable :: inflow(:)         ! lake inflow [m3 s-1] (LAKEOUT)
+     real(8), allocatable :: outflow(:)        ! lake outflow [m3 s-1] (LAKEOUT)
+     integer, allocatable :: typel(:)          ! (nch) 0: none, 1: lake outlet, 2: internal lake link, 3: inflow to lake
+     integer, allocatable :: lake_of_ich(:)    ! (nch) lake index for TYPEL 1/2 (lake receiving the flow for TYPEL 3), 0 otherwise
+  end type lakeSedCNP_struct
+  type(lakeSedCNP_struct) lake
 
+  ! Lateral inflows (surface runoff, interflow, groundwater) from gw basins to channels, distributed
+  ! as in the hydro model (simp_gw_buck): the flux of gw basin b is divided uniformly among the
+  ! stream pixels of b, i.e. link k receives the fraction w(k,b) = npix(k,b) / npix(b), where
+  ! npix(k,b) is the number of stream pixels of link k in basin b and npix(b) that of basin b.
+  ! Pixels of internal lake links are counted for the lake outlet link. Sparse (CSR) storage:
+  ! the basins of link ich are lat_gw(lat_ptr(ich):lat_ptr(ich+1)-1) with weights lat_w(...).
+  integer, allocatable :: lat_ptr(:), lat_gw(:)
+  real(8), allocatable :: lat_w(:)
+  ! LSM grid cells of each gw basin b: (bas_ci(n), bas_cj(n)), n = bas_ptr(b) .. bas_ptr(b+1)-1
+  integer, allocatable :: bas_ptr(:), bas_ci(:), bas_cj(:)
+
+  ! Lateral loads of the time-step to each channel link (module_lateralTransport), [kg dt-1]:
+  ! latS_ch: surface-runoff loads, latI_ch: interflow loads (option 1: exfiltrated interflow
+  ! reaching the channel along the surface paths). Tracer order:
+  !   latS: 1-4 sediment (grain sizes), 5 LPOC, 6 RPOC, 7 LDOC, 8 RDOC, 9 MBMC,
+  !         10 LPON, 11 RPON, 12 LDON, 13 RDON, 14 MBMN, 15 NH4, 16 NO3,
+  !         17 LPOP, 18 RPOP, 19 LDOP, 20 RDOP, 21 MBMP, 22 PO4, 23 PIPA, 24 PIPS
+  !   latI: 1 LDOC, 2 RDOC, 3 LDON, 4 RDON, 5 NH4, 6 NO3, 7 LDOP, 8 RDOP, 9 PO4
+  integer, parameter   :: ntr_s = 24, ntr_i = 9
+  real(8), allocatable :: latS_ch(:,:), latI_ch(:,:)
+!
+!=====||__WHQ5403__||=====!
+
+contains
+
+!=====||__WHQ5403__||=====!
+!
+  ! Groundwater-to-channel flux for channel ich: sum over the gw basins b of the link of
+  ! w(ich,b) * gw_flux(b) (as the baseflow distribution of the hydro model).
+  real(8) function gw_to_ch(gw_flux, ich)
+     implicit none
+     real(8), intent(in) :: gw_flux(:)
+     integer, intent(in) :: ich
+     integer             :: k
+
+     gw_to_ch = 0.0d0
+     do k = lat_ptr(ich), lat_ptr(ich+1) - 1
+        gw_to_ch = gw_to_ch + lat_w(k) * gw_flux(lat_gw(k))
+     enddo
+  end function gw_to_ch
+
+  ! Lateral load to channel ich from a 2-D LSM-grid field f(ix,jx) (e.g. surface runoff loads):
+  ! sum over the gw basins b of the link of w(ich,b) * (sum of f over the cells of b).
+  real(8) function lat_sum2(f, ich)
+     implicit none
+     real(8), intent(in) :: f(:,:)
+     integer, intent(in) :: ich
+     integer             :: k, b, n
+     real(8)             :: fb
+
+     lat_sum2 = 0.0d0
+     do k = lat_ptr(ich), lat_ptr(ich+1) - 1
+        b = lat_gw(k)
+        fb = 0.0d0
+        do n = bas_ptr(b), bas_ptr(b+1) - 1
+           fb = fb + f(bas_ci(n), bas_cj(n))
+        enddo
+        lat_sum2 = lat_sum2 + lat_w(k) * fb
+     enddo
+  end function lat_sum2
+
+  ! As lat_sum2 for a layered field f(ix,nsl,jx) (e.g. interflow loads), summed over the layers.
+  real(8) function lat_sum3l(f, ich)
+     implicit none
+     real(8), intent(in) :: f(:,:,:)
+     integer, intent(in) :: ich
+     integer             :: k, b, n
+     real(8)             :: fb
+
+     lat_sum3l = 0.0d0
+     do k = lat_ptr(ich), lat_ptr(ich+1) - 1
+        b = lat_gw(k)
+        fb = 0.0d0
+        do n = bas_ptr(b), bas_ptr(b+1) - 1
+           fb = fb + sum(f(bas_ci(n), :, bas_cj(n)))
+        enddo
+        lat_sum3l = lat_sum3l + lat_w(k) * fb
+     enddo
+  end function lat_sum3l
+
+  ! As lat_sum2 for grain size ips of a sediment field f(nps,ix,jx); negative values are skipped.
+  real(8) function lat_sum_sed(f, ips, ich)
+     implicit none
+     real(8), intent(in) :: f(:,:,:)
+     integer, intent(in) :: ips, ich
+     integer             :: k, b, n
+     real(8)             :: fb
+
+     lat_sum_sed = 0.0d0
+     do k = lat_ptr(ich), lat_ptr(ich+1) - 1
+        b = lat_gw(k)
+        fb = 0.0d0
+        do n = bas_ptr(b), bas_ptr(b+1) - 1
+           if (f(ips, bas_ci(n), bas_cj(n)) >= 0.0) fb = fb + f(ips, bas_ci(n), bas_cj(n))
+        enddo
+        lat_sum_sed = lat_sum_sed + lat_w(k) * fb
+     enddo
+  end function lat_sum_sed
+
+  ! Channel index that receives the inputs assigned to channel ich: the lake outlet link
+  ! for an internal lake link (TYPEL 2), ich itself otherwise.
+  integer function lake_ich(ich)
+     implicit none
+     integer, intent(in) :: ich
+
+     lake_ich = ich
+     if (lake%active .and. ich > 0) then
+        if (lake%typel(ich) == 2) lake_ich = lake%outlet_ich(lake%lake_of_ich(ich))
+     endif
+  end function lake_ich
+!
+!=====||__WHQ5403__||=====!
 
 end module module_SedCNPvariables

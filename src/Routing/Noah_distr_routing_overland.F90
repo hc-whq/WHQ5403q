@@ -220,6 +220,7 @@ subroutine ov_rtng( &
         mpp_land_sync
 #endif
     use overland_data
+    use module_UDMAP, only: sfc_in, sfc_out, sfc_dir, sfc_chan, sfc_lake, sfc_bdry, sfc_rem, sfc_out9   !WHQ5403
     IMPLICIT NONE
 
     !DJG --------DECLARATIONS----------------------------
@@ -254,6 +255,7 @@ subroutine ov_rtng( &
 
     REAL, DIMENSION(IXRT,JXRT)	:: INFXS_FRAC
     REAL	:: DT_FRAC,SUM_INFXS,sum_head
+    INTEGER :: kdir   !WHQ5403
     !INTEGER SO8RT_D(IXRT,JXRT,3), rt_option
 
     !DJG ----------------------------------------------------------------------
@@ -277,6 +279,10 @@ subroutine ov_rtng( &
 
     !DJG Assign all infiltration excess to surface head...
     ovrt_data%control%surface_water_head_routing=ovrt_data%control%infiltration_excess
+    !=====||__WHQ5403__||=====! cell water fluxes of this time-step for the SedCNP lateral transport
+    sfc_in   = ovrt_data%control%infiltration_excess
+    sfc_out  = 0.0; sfc_out9 = 0.0; sfc_chan = 0.0; sfc_lake = 0.0; sfc_bdry = 0.0
+    !=====||__WHQ5403__||=====!
 
     !DJG Divide infiltration excess over all routing time-steps
     !	     INFXS_FRAC=INFXSUBRT/(DT/DTRT_TER)
@@ -337,6 +343,8 @@ subroutine ov_rtng( &
                             (ovrt_data%control%surface_water_head_routing(I,J) - ovrt_data%properties%retention_depth(I,J))
                         ovrt_data%streams_and_lakes%surface_water_to_channel(I,J) = ovrt_data%streams_and_lakes%surface_water_to_channel(I,J) + &
                             (ovrt_data%control%surface_water_head_routing(I,J) - ovrt_data%properties%retention_depth(I,J))
+                        sfc_chan(I,J) = sfc_chan(I,J) + &   !WHQ5403
+                            (ovrt_data%control%surface_water_head_routing(I,J) - ovrt_data%properties%retention_depth(I,J))
 
                         ! if(QSTRMVOLRT(I,J) .gt. 0) then
                         !     print *, "QSTRVOL GT 0", QSTRMVOLRT(I,J),I,J
@@ -354,6 +362,8 @@ subroutine ov_rtng( &
                         ovrt_data%streams_and_lakes%accumulated_surface_water_to_lake = ovrt_data%streams_and_lakes%accumulated_surface_water_to_lake + &
                             (ovrt_data%control%surface_water_head_routing(I,J) - ovrt_data%properties%retention_depth(I,J))
                         ovrt_data%streams_and_lakes%surface_water_to_lake(I,J) = ovrt_data%streams_and_lakes%surface_water_to_lake(I,J) + &
+                            (ovrt_data%control%surface_water_head_routing(I,J)- ovrt_data%properties%retention_depth(I,J))
+                        sfc_lake(I,J) = sfc_lake(I,J) + &   !WHQ5403
                             (ovrt_data%control%surface_water_head_routing(I,J)- ovrt_data%properties%retention_depth(I,J))
                         ovrt_data%control%surface_water_head_routing(I,J) = ovrt_data%properties%retention_depth(I,J)
                     END IF
@@ -404,6 +414,29 @@ subroutine ov_rtng( &
 
     END DO          ! END routing time steps
 
+    !=====||__WHQ5403__||=====!
+    ! remaining surface head and main direction of the overland outflow of this time-step
+    sfc_rem = ovrt_data%control%surface_water_head_routing
+    sfc_dir = 0.0
+    DO J=1,JXRT
+        DO I=1,IXRT
+            IF (sfc_out(I,J) .GT. 0.0) THEN
+                kdir = maxloc(sfc_out9(I,J,:), dim=1)
+                sfc_dir(I,J) = real(kdir)
+            END IF
+        END DO
+    END DO
+#ifdef MPP_LAND
+    call MPP_LAND_COM_REAL(sfc_in,IXRT,JXRT,99)
+    call MPP_LAND_COM_REAL(sfc_out,IXRT,JXRT,99)
+    call MPP_LAND_COM_REAL(sfc_dir,IXRT,JXRT,99)
+    call MPP_LAND_COM_REAL(sfc_chan,IXRT,JXRT,99)
+    call MPP_LAND_COM_REAL(sfc_lake,IXRT,JXRT,99)
+    call MPP_LAND_COM_REAL(sfc_bdry,IXRT,JXRT,99)
+    call MPP_LAND_COM_REAL(sfc_rem,IXRT,JXRT,99)
+#endif
+    !=====||__WHQ5403__||=====!
+
 #ifdef HYDRO_D
     print *, "End of OV_routing call..."
 #endif
@@ -447,6 +480,7 @@ SUBROUTINE ROUTE_OVERLAND1(dt,                                &
         up_id,mpp_land_com_real, my_id, mpp_land_com_real8,&
         mpp_land_sync
 #endif
+    use module_UDMAP, only: sfc_out, sfc_out9, sfc_bdry   !WHQ5403
 
     IMPLICIT NONE
 
@@ -480,6 +514,7 @@ SUBROUTINE ROUTE_OVERLAND1(dt,                                &
     REAL :: tmp_adjust
 
     INTEGER :: i,j
+    INTEGER :: kdir   !WHQ5403
     REAL IXX8,IYY8
     INTEGER  IXX0,JYY0,index, SO8RT_D(XX,YY,3)
     REAL :: tmp_gsize, hsum, tmp_gsize_arr(9)
@@ -562,6 +597,10 @@ SUBROUTINE ROUTE_OVERLAND1(dt,                                &
                     end if
                     DH(i,j) = DH(i,j)-tmp_adjust
                     DH_tmp(ixx0,jyy0) = DH_tmp(ixx0,jyy0) + tmp_adjust
+                    !WHQ5403 overland outflow of cell (i,j) by direction (SedCNP lateral transport)
+                    kdir = 3*(JYY0-j+1) + (IXX0-i+1) + 1
+                    sfc_out(i,j) = sfc_out(i,j) + tmp_adjust
+                    sfc_out9(i,j,kdir) = sfc_out9(i,j,kdir) + tmp_adjust
                     !yw end change
 
                     !DG Boundary adjustments here
@@ -580,6 +619,10 @@ SUBROUTINE ROUTE_OVERLAND1(dt,                                &
                             QBDRY_tmp(IXX0,JYY0)=QBDRY_tmp(IXX0,JYY0) - qqsfc*1000.
                             QBDRYT=QBDRYT - qqsfc
                             DH_tmp(IXX0,JYY0)= DH_tmp(IXX0,JYY0)-tmp_adjust
+                            !WHQ5403 outflow to a boundary cell leaves the domain
+                            sfc_out(i,j) = sfc_out(i,j) - tmp_adjust
+                            sfc_out9(i,j,kdir) = sfc_out9(i,j,kdir) - tmp_adjust
+                            sfc_bdry(i,j) = sfc_bdry(i,j) + tmp_adjust
 
                         end if
                     end if
@@ -651,6 +694,7 @@ end do
 #endif
     QBDRY = QBDRY - edge_adjust ! making this negative term more negative
     H = H - edge_adjust ! making this positive term less positive
+    sfc_bdry = sfc_bdry + edge_adjust   !WHQ5403 head above retention depth removed at the domain edge
 !!! End outermost edge scrape
 
     return

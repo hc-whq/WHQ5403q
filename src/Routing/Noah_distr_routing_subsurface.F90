@@ -80,6 +80,7 @@ SUBROUTINE SUBSFC_RTNG(subrt_data, subrt_static, subrt_input, subrt_output, CWAT
     use module_subsurface_output
     use module_hydro_stop, only:HYDRO_stop
     use module_UDMAP, only: q_intf  !=====||___WHQ___||=====!
+    use module_UDMAP, only: sub_exfil  !WHQ5403
 #endif
     IMPLICIT NONE
 
@@ -247,6 +248,8 @@ SUBROUTINE SUBSFC_RTNG(subrt_data, subrt_static, subrt_input, subrt_output, CWAT
     ! allow users to still have option to use 2d overland (both are controlled by same
     ! rt_option flag). Remove this hard-coded option when rt_option=2 is fixed for subsurface.
     !     if(subrt_static%rt_option .eq. 1) then
+    sub_exfil = 0.0   !WHQ5403 exfiltration of this time-step (SedCNP lateral transport)
+
     CALL ROUTE_SUBSURFACE1(subrt_data%properties%distance_to_neighbor, &
                            subrt_data%properties%zwattablrt, &
                            subrt_data%properties%lksatrt, subrt_data%properties%nexprt, &
@@ -327,6 +330,7 @@ SUBROUTINE SUBSFC_RTNG(subrt_data, subrt_static, subrt_input, subrt_output, CWAT
                 ! If all layers sat. add remaining subflo to infilt. excess...
                 IF (KK.eq.0.AND.SUBFLO.gt.0.) then
                     subrt_input%infiltration_excess(I,J) = subrt_input%infiltration_excess(I,J) + SUBFLO*1000.    !Units = mm
+                    sub_exfil(I,J) = sub_exfil(I,J) + SUBFLO*1000.   !WHQ5403
                     SUBFLO=0.
                 END IF
 
@@ -394,6 +398,7 @@ SUBROUTINE SUBSFC_RTNG(subrt_data, subrt_static, subrt_input, subrt_output, CWAT
     do i = 1, subrt_static%nsoil
         call MPP_LAND_COM_REAL(subrt_data%grid_transform%smcrt(:,:,i),subrt_static%IXRT,subrt_static%JXRT,99)
     end DO
+    call MPP_LAND_COM_REAL(sub_exfil,subrt_static%IXRT,subrt_static%JXRT,99)   !WHQ5403
 #endif
 
 #ifdef HYDRO_D
@@ -576,6 +581,7 @@ SUBROUTINE ROUTE_SUBSURFACE1(dist, z, latksat, nexp, soldep, &
    use module_mpp_land, only: left_id, down_id, right_id, up_id, &
                               mpp_land_com_real8, my_id, mpp_land_com_real
    use module_UDMAP, only: q_intf  !=====||___WHQ___||=====!
+   use module_UDMAP, only: sub_dir  !WHQ5403
 #endif
    use module_hydro_stop, only:HYDRO_stop
 
@@ -616,6 +622,12 @@ SUBROUTINE ROUTE_SUBSURFACE1(dist, z, latksat, nexp, soldep, &
    ! Initialize temp variables
    qsub_tmp = 0.
    QSUBDRY_tmp = 0.
+   !=====||__WHQ5403__||=====!
+   ! q_intf was assigned only for cells with outflow in this call, so cells without outflow kept
+   ! the value of an earlier time-step (and the initial -9999 at the edges)
+   q_intf = 0.
+   sub_dir = 0.
+   !=====||__WHQ5403__||=====!
 
 #ifdef HYDRO_D
    write(6,*) "call subsurface routing xx= , yy =", yy, xx
@@ -686,6 +698,7 @@ SUBROUTINE ROUTE_SUBSURFACE1(dist, z, latksat, nexp, soldep, &
                ! (remember: qqsub is negative when flow is out of cell!)
                ! (remember: dist(i,j,9) is cell area in m2)
                q_intf(i,j) = -1.0 * qqsub / dist(i,j,9) * SUBDT * 1000.  !(mm)
+               sub_dir(i,j) = real(3*(JYY0-j+1) + (IXX0-i+1) + 1)   !WHQ5403 receiving neighbour of q_intf
                !
                !=====||___WHQ___||=====!
 
@@ -755,6 +768,7 @@ SUBROUTINE ROUTE_SUBSURFACE1(dist, z, latksat, nexp, soldep, &
    ! mpp_land.F90) overlaps tiles by 1 cell, so an un-synced boundary row/column
    ! showed a different value than NP=1 there. Sync it the same way as qsub.
    call MPP_LAND_COM_REAL(q_intf,XX,YY,99)
+   call MPP_LAND_COM_REAL(sub_dir,XX,YY,99)   !WHQ5403
    !
    !=====||___WHQ___||=====!
    

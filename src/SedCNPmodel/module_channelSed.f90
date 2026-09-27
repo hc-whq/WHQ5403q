@@ -1,15 +1,17 @@
 module module_channelSed
 
    use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base,            only: SedCNPmodel
    use SedCNP_config,          only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 
    real(8)               :: Gs = 2.65  !specific gravity of sediment 
    real(8)               :: g = 9.8    !gravitational acceleration [m/s2]
-   real(8)               :: v = 0.0001        !kinematic viscosity of water [m2/s]
+   !real(8)               :: v = 0.0001        !kinematic viscosity of water [m2/s]
+   real(8)               :: v = 1.0d-6        !kinematic viscosity of water [m2/s]  !WHQ5403 (was 1.0E-4; water ~1.0E-6 at 20 C)
 
    contains
 
@@ -98,6 +100,7 @@ module module_channelSed
       if (h < 0.0) then
          h = 0.0
       endif
+      if (SideSlopch <= 0.0) SideSlopch = 1.0E-6   !WHQ5403 as in RunCNP_Ch (same water storage)
 
       !Compute cross-section area of channel flow [m2]
       !WtopWdth = (2 * h * SideSlopch) + BtmWdth              !channel water top width [m]
@@ -128,7 +131,15 @@ module module_channelSed
 
          !***** variables below are read from WHQ hydro sim. results ****************************** !BK20240713 
          !
-         WStorage = SedCNP_hydro%Wstg_st(ich)
+         !WStorage = SedCNP_hydro%Wstg_st(ich)
+         !=====||__WHQ5403__||=====!
+         ! water storage of the current time-step (Wstg_st was that of the previous time-step,
+         ! since it is updated in RunCNP_Ch after the sediment calculations; this overestimated
+         ! the sediment discharge rate Qdsch/Wstg on rising stages and gave no discharge at the
+         ! first time-step). Same geometry as RunCNP_Ch.
+         WStorage = Axsect * Lst
+         SedCNP_hydro%Wstg_st(ich) = WStorage
+         !=====||__WHQ5403__||=====!
          !
          !Qabs (assumption: Qabs can't be greater than 50% of WStorage)
          !SedCNP_hydro%Qabs(ich,itime) = min(WStorage*0.5, SedCNP_hydro%Qabs_max(ich,itime)*dt) / dt
@@ -176,26 +187,32 @@ module module_channelSed
 
       dt = real(SedCNPmodel%SedCNP_timestep)   !BK20231016
       chid = SedCNP_hydro%linkID(ich)         !BK20231029
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       !initialisation
       channelSed%Solch0(ips,ich) = 0.  !BK20250925
 
       ! --- influx: overland surface runoff  !BK20240726
-      do i = 1, domain%ix
-         do j = 1, domain%jx
-               if (gwid > 0) then  !BK20250928
-                  if (SedCNP_hydro%gwbasin(i,j) .eq. gwid) then    !BK20231012  !BK20240610 !BK20240726
-                     if (overSed%Ssurf0(ips,i,j) >= 0.0) then  
-                        !channelSed%Solch(ips,ich) = channelSed%Solch(ips,ich) + overSed%Ssurf(ips,i,j)
-                        channelSed%Solch0(ips,ich) = channelSed%Solch0(ips,ich) + overSed%Ssurf0(ips,i,j)  !BK20240618  !BK20250925
-                     endif
-                  endif
-               else  !BK20250928
-                  cycle  !BK20250928
-               endif  !BK20250928
-         enddo
-      enddo
+      !do i = 1, domain%ix
+         !do j = 1, domain%jx
+               !if (gwid > 0) then  !BK20250928
+                  !!if (SedCNP_hydro%gwbasin(i,j) .eq. gwid) then    !BK20231012  !BK20240610 !BK20240726
+                  !if (lake%gwbasin_lat(i,j) .eq. gwid) then    !BK20231012  !BK20240610 !BK20240726   !WHQ5403 lateral inflows of internal lake links -> lake outlet
+                     !if (overSed%Ssurf0(ips,i,j) >= 0.0) then  
+                        !!channelSed%Solch(ips,ich) = channelSed%Solch(ips,ich) + overSed%Ssurf(ips,i,j)
+                        !channelSed%Solch0(ips,ich) = channelSed%Solch0(ips,ich) + overSed%Ssurf0(ips,i,j)  !BK20240618  !BK20250925
+                     !endif
+                  !endif
+               !else  !BK20250928
+                  !cycle  !BK20250928
+               !endif  !BK20250928
+         !enddo
+      !enddo
+      !=====||__WHQ5403__||=====!
+      ! lateral loads of the link (module_lateralTransport; SedCNP_lateral_option 1: hydro-model paths, 0: gw basin sum)
+      channelSed%Solch0(ips,ich) = latS_ch(ips, ich) / dt   ! [kg s-1]
+      !=====||__WHQ5403__||=====!
 
       !BK20240618 commented out
       !if (channelSed%Susch(ips,ich) < 0.0) then
@@ -359,7 +376,8 @@ module module_channelSed
       real(8),               intent(in)  :: Lst   !channel length [m]
       real(8),               intent(in)  :: Area_x   !cross section in the direction of flow [m2]
       real(8)                            :: Jc           !sediment transport capacity areal flux [kg/m2/s]
-      real(8)                            :: V            !BK20260523 bed layer volume [m3]
+      !real(8)                            :: V            !BK20260523 bed layer volume [m3]
+      real(8)                            :: V_bed            !BK20260523 bed layer volume [m3]   !WHQ5403 V -> V_bed: local V shadowed the kinematic viscosity v (case-insensitive) used for vs below
       real(8)                            :: Csb          !BK20260523 bed concentration [kg/m3]
       real(8)                            :: Csw          !BK20260523 water-column concentration [kg/m3]
       real(8)                            :: rho_b        !BK20260523 dry bulk density of bed [kg/m3]
@@ -397,11 +415,15 @@ module module_channelSed
       !call channelSedDischarge(ich,ips,Qdsch,dt)                            !BK20260523 replaced
 
       !--- Step 1: compute Scher (channelSedErosion logic) ---
-      V     = BtmWdth * Lst * 0.01d0                                                !BK20260523
+      !V     = BtmWdth * Lst * 0.01d0                                                !BK20260523
+      V_bed     = BtmWdth * Lst * 0.01d0                                                !BK20260523
       rho_b = 1300.d0                                                                !BK20260523
-      if (V > 1.0E-9) then                                                           !BK20260523
-         channelSed%Sch(ips,ich) = min(channelSed%Sch(ips,ich), V * rho_b)         !BK20260523
-         Csb = channelSed%Sch(ips,ich) / V                                          !BK20260523
+      !if (V > 1.0E-9) then                                                           !BK20260523
+      if (V_bed > 1.0E-9) then                                                           !BK20260523
+         !channelSed%Sch(ips,ich) = min(channelSed%Sch(ips,ich), V * rho_b)         !BK20260523
+         channelSed%Sch(ips,ich) = min(channelSed%Sch(ips,ich), V_bed * rho_b)         !BK20260523
+         !Csb = channelSed%Sch(ips,ich) / V                                          !BK20260523
+         Csb = channelSed%Sch(ips,ich) / V_bed                                          !BK20260523
       else                                                                           !BK20260523
          Csb = 0.0d0                                                                !BK20260523
       endif                                                                          !BK20260523

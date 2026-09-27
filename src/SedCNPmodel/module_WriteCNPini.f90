@@ -22,11 +22,12 @@ module WriteCNPini
 
    !use CNPvariables  !Y.Kwon
    use module_SedCNPvariables    !BK20230316
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base,           only: SedCNPmodel   !BK20231002
    use SedCNP_config,         only: SedCNPmodel   !BK20231002
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 
    contains
 

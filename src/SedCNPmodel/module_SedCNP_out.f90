@@ -29,11 +29,12 @@ module module_SedCNP_out
 
   use netcdf      
   !use module_hydro_stop, only:HYDRO_stop
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+  !use config_base,           only: SedCNPmodel   !BK20231016
   use SedCNP_config,         only: SedCNPmodel   !BK20231016
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
   !use module_SedCNPvariables
 
   contains

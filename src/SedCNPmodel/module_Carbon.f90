@@ -2,11 +2,12 @@ module Carbon
 
    use CNPfunctions
    use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base,           only: SedCNPmodel
    use SedCNP_config,         only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
    use CNPparams
 
    implicit none
@@ -614,7 +615,8 @@ contains
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       !================================================================
       ! I. INFLOWS
@@ -631,7 +633,8 @@ contains
       Ch_RDOC(ich) = Ch_RDOC0(ich) + Ch_RDOCusch0(ich)
 
       ! --- Lateral inflows (surface, interflow, groundwater)
-      IF (gwid >= 0) THEN  ! if 'genuine' channel to which gwbasin drains
+      !IF (gwid >= 0) THEN  ! if 'genuine' channel to which gwbasin drains
+      IF (gwid >= 0 .or. SedCNPmodel%SedCNP_lateral_option == 1) THEN   !WHQ5403 option 1: loads along the cell paths, independent of gwid
 
          ! initialisation
          Ch_LPOCsurf0(ich) = 0.0
@@ -642,30 +645,43 @@ contains
          Ch_LDOCintf0(ich) = 0.0
          Ch_RDOCintf0(ich) = 0.0
 
-         DO i = 1, domain%ix
-            DO j = 1, domain%jx
-               IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+         !DO i = 1, domain%ix
+            !DO j = 1, domain%jx
+               !!IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+               !IF (lake%gwbasin_lat(i,j) == gwid) THEN   !WHQ5403 lateral inflows of internal lake links -> lake outlet
 
-                  ! surface runoff
-                  Ch_LPOCsurf0(ich) = Ch_LPOCsurf0(ich) + So_LPOCsurf0(i,j)
-                  Ch_RPOCsurf0(ich) = Ch_RPOCsurf0(ich) + So_RPOCsurf0(i,j)
-                  Ch_LDOCsurf0(ich) = Ch_LDOCsurf0(ich) + So_LDOCsurf0(i,j)
-                  Ch_RDOCsurf0(ich) = Ch_RDOCsurf0(ich) + So_RDOCsurf0(i,j)
-                  Ch_MBMCsurf0(ich) = Ch_MBMCsurf0(ich) + So_MBMCsurf0(i,j)
+                  !! surface runoff
+                  !Ch_LPOCsurf0(ich) = Ch_LPOCsurf0(ich) + So_LPOCsurf0(i,j)
+                  !Ch_RPOCsurf0(ich) = Ch_RPOCsurf0(ich) + So_RPOCsurf0(i,j)
+                  !Ch_LDOCsurf0(ich) = Ch_LDOCsurf0(ich) + So_LDOCsurf0(i,j)
+                  !Ch_RDOCsurf0(ich) = Ch_RDOCsurf0(ich) + So_RDOCsurf0(i,j)
+                  !Ch_MBMCsurf0(ich) = Ch_MBMCsurf0(ich) + So_MBMCsurf0(i,j)
                   
-                  ! interflow
-                  DO isl = 1, domain%nsl
-                     Ch_LDOCintf0(ich) = Ch_LDOCintf0(ich) + So_LDOCintf0(i,isl,j)
-                     Ch_RDOCintf0(ich) = Ch_RDOCintf0(ich) + So_RDOCintf0(i,isl,j)
-                  END DO
+                  !! interflow
+                  !DO isl = 1, domain%nsl
+                     !Ch_LDOCintf0(ich) = Ch_LDOCintf0(ich) + So_LDOCintf0(i,isl,j)
+                     !Ch_RDOCintf0(ich) = Ch_RDOCintf0(ich) + So_RDOCintf0(i,isl,j)
+                  !END DO
 
-               END IF
-            END DO
-         END DO
+               !END IF
+            !END DO
+         !END DO
+         !=====||__WHQ5403__||=====!
+         ! lateral loads of the link (module_lateralTransport; SedCNP_lateral_option 1: hydro-model paths, 0: gw basin sum)
+         Ch_LPOCsurf0(ich) = latS_ch(5, ich)
+         Ch_RPOCsurf0(ich) = latS_ch(6, ich)
+         Ch_LDOCsurf0(ich) = latS_ch(7, ich)
+         Ch_RDOCsurf0(ich) = latS_ch(8, ich)
+         Ch_MBMCsurf0(ich) = latS_ch(9, ich)
+         Ch_LDOCintf0(ich) = latI_ch(1, ich)
+         Ch_RDOCintf0(ich) = latI_ch(2, ich)
+         !=====||__WHQ5403__||=====!
 
          ! groundwater inflow
-         Ch_LDOCgwch0(ich) = Gw_LDOCgwch0(gwid)
-         Ch_RDOCgwch0(ich) = Gw_RDOCgwch0(gwid)
+         !Ch_LDOCgwch0(ich) = Gw_LDOCgwch0(gwid)
+         Ch_LDOCgwch0(ich) = gw_to_ch(Gw_LDOCgwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
+         !Ch_RDOCgwch0(ich) = Gw_RDOCgwch0(gwid)
+         Ch_RDOCgwch0(ich) = gw_to_ch(Gw_RDOCgwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
 
          ! update storage
          Ch_LPOC(ich) = Ch_LPOC(ich) + Ch_LPOCsurf0(ich)
@@ -940,14 +956,16 @@ contains
       ! end if
       
       !POM
-      dPI = calc_dPI(etaPOMdsch, Qdsch, WStorage)  !BK20260302
+      !dPI = calc_dPI(etaPOMdsch, Qdsch, WStorage)  !BK20260302
+      dPI = calc_dPI(etaPOMdsch, Qdsch * dt, WStorage)  !WHQ5403 outflow volume [m3] (Qdsch [m3/s] * dt), as in module_Nitrogen/Phosphorus
       Ch_ALGCdsch(ich,:) = Ch_ALGC_init(:) * dPI
       Ch_ZOOCdsch(ich)   = Ch_ZOOC_init * dPI
       Ch_LPOCdsch(ich)   = Ch_LPOC_init * dPI
       Ch_RPOCdsch(ich)   = Ch_RPOC_init * dPI
       Ch_MBMCdsch(ich)   = Ch_MBMC_init * dPI
       !DOM, DIC
-      dPI = calc_dPI(etaDOMdsch, Qdsch, WStorage)  !BK20260302
+      !dPI = calc_dPI(etaDOMdsch, Qdsch, WStorage)  !BK20260302
+      dPI = calc_dPI(etaDOMdsch, Qdsch * dt, WStorage)  !WHQ5403 outflow volume [m3] (Qdsch [m3/s] * dt), as in module_Nitrogen/Phosphorus
       Ch_LDOCdsch(ich)   = Ch_LDOC_init * dPI
       Ch_RDOCdsch(ich)   = Ch_RDOC_init * dPI
       Ch_DICdsch(ich)    = Ch_DIC_init * dPI
@@ -1234,7 +1252,8 @@ contains
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       Ch_CSC(ich) = &
               (Ch_ALGC(ich,1)     - Ch_ALGC0(ich,1))     &

@@ -1,11 +1,12 @@
 cmake_minimum_required (VERSION 2.8)
 
 add_library(hydro_SedCNPmodel STATIC
-#=====||__WHQ5403q__||=====!
+#=====||__WHQ5403__||=====!
 #
 	module_SedCNP_config.f90
+	module_progress.f90
 #
-#=====||__WHQ5403q__||=====!
+#=====||__WHQ5403__||=====!
 	module_SedCNPvariables.f90
 	module_AlloDeallocate.f90
 	module_overlandSed.f90
@@ -21,6 +22,13 @@ add_library(hydro_SedCNPmodel STATIC
 	module_CNPupdates.f90
 	module_ReadCNPini.f90
 	module_CNPmain.f90
+#=====||__WHQ5403__||=====!
+#
+	module_lakeSedCNP.f90
+	module_lateralTransport.f90
+	module_CNPrestart.f90
+#
+#=====||__WHQ5403__||=====!
 	module_SedCNPmodel_driver.f90
 )
 

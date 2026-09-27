@@ -44,6 +44,8 @@ CONTAINS
       use module_RT_data, only: rt_domain
       use config_base, only: nlst
       use module_UDMAP, only: subbasinID, q_sogw, q_intf  !=====||___WHQ___||=====!
+      use module_UDMAP, only: sfc_in, sfc_out, sfc_dir, sfc_chan, sfc_lake, sfc_bdry, sfc_rem, sfc_out9, &   !WHQ5403
+                              sub_dir, sub_exfil
 
       implicit none
       integer ixrt,jxrt, ix,jx,nsoil,NLINKS, CHANRTSWCRT, NLAKES, NLINKSL
@@ -306,6 +308,13 @@ CONTAINS
            q_intf = -9999
   !
   !=====||___WHQ___||=====!
+  !=====||__WHQ5403__||=====!
+  allocate(sfc_in(IXRT,JXRT), sfc_out(IXRT,JXRT), sfc_dir(IXRT,JXRT), sfc_chan(IXRT,JXRT), &
+           sfc_lake(IXRT,JXRT), sfc_bdry(IXRT,JXRT), sfc_rem(IXRT,JXRT), sfc_out9(IXRT,JXRT,9), &
+           sub_dir(IXRT,JXRT), sub_exfil(IXRT,JXRT))
+  sfc_in = 0.0;   sfc_out = 0.0;  sfc_dir = 0.0;  sfc_chan = 0.0;  sfc_lake = 0.0
+  sfc_bdry = 0.0; sfc_rem = 0.0;  sfc_out9 = 0.0; sub_dir = 0.0;   sub_exfil = 0.0
+  !=====||__WHQ5403__||=====!
 
   end if ! neither channel_only nor channelBucket_only
 

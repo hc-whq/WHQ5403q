@@ -2,11 +2,12 @@ module Nitrogen
 
    use CNPfunctions
    use module_SedCNPvariables
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
 !
+   !use config_base, only: SedCNPmodel
    use SedCNP_config, only: SedCNPmodel
 !
-!=====||__WHQ5403q__||=====!
+!=====||__WHQ5403__||=====!
    use CNPparams
 
    implicit none
@@ -783,7 +784,8 @@ contains
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       ! ================================================================
       ! I. INFLOWS
@@ -801,7 +803,8 @@ contains
       Ch_NO3(ich)  = Ch_NO30(ich)  + Ch_NO3usch0(ich)
 
       ! --- Lateral inflows (surface, interflow, groundwater)
-      IF (gwid >= 0) THEN
+      !IF (gwid >= 0) THEN
+      IF (gwid >= 0 .or. SedCNPmodel%SedCNP_lateral_option == 1) THEN   !WHQ5403 option 1: loads along the cell paths, independent of gwid
 
          ! initialisation
          Ch_LPONsurf0(ich) = 0.0
@@ -816,40 +819,59 @@ contains
          Ch_NH4intf0(ich)  = 0.0
          Ch_NO3intf0(ich)  = 0.0
 
-         DO i = 1, domain%ix
-            DO j = 1, domain%jx
-               IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+         !DO i = 1, domain%ix
+            !DO j = 1, domain%jx
+               !!IF (SedCNP_hydro%gwbasin(i,j) == gwid) THEN
+               !IF (lake%gwbasin_lat(i,j) == gwid) THEN   !WHQ5403 lateral inflows of internal lake links -> lake outlet
 
-                  ! surface runoff
-                  Ch_LPONsurf0(ich) = Ch_LPONsurf0(ich) + So_LPONsurf0(i,j)
-                  Ch_RPONsurf0(ich) = Ch_RPONsurf0(ich) + So_RPONsurf0(i,j)
-                  Ch_LDONsurf0(ich) = Ch_LDONsurf0(ich) + So_LDONsurf0(i,j)
-                  Ch_RDONsurf0(ich) = Ch_RDONsurf0(ich) + So_RDONsurf0(i,j)
-                  Ch_MBMNsurf0(ich) = Ch_MBMNsurf0(ich) + So_MBMNsurf0(i,j)
-                  Ch_NH4surf0(ich)  = Ch_NH4surf0(ich)  + So_NH4surf0(i,j)
-                  Ch_NO3surf0(ich)  = Ch_NO3surf0(ich)  + So_NO3surf0(i,j)
+                  !! surface runoff
+                  !Ch_LPONsurf0(ich) = Ch_LPONsurf0(ich) + So_LPONsurf0(i,j)
+                  !Ch_RPONsurf0(ich) = Ch_RPONsurf0(ich) + So_RPONsurf0(i,j)
+                  !Ch_LDONsurf0(ich) = Ch_LDONsurf0(ich) + So_LDONsurf0(i,j)
+                  !Ch_RDONsurf0(ich) = Ch_RDONsurf0(ich) + So_RDONsurf0(i,j)
+                  !Ch_MBMNsurf0(ich) = Ch_MBMNsurf0(ich) + So_MBMNsurf0(i,j)
+                  !Ch_NH4surf0(ich)  = Ch_NH4surf0(ich)  + So_NH4surf0(i,j)
+                  !Ch_NO3surf0(ich)  = Ch_NO3surf0(ich)  + So_NO3surf0(i,j)
 
-                  ! interflow
-                  DO isl = 1, domain%nsl
-                     Ch_LDONintf0(ich) = Ch_LDONintf0(ich) + &
-                        So_LDONintf0(i,isl,j)
-                     Ch_RDONintf0(ich) = Ch_RDONintf0(ich) + &
-                        So_RDONintf0(i,isl,j)
-                     Ch_NH4intf0(ich) = Ch_NH4intf0(ich) + &
-                        So_NH4intf0(i,isl,j)
-                     Ch_NO3intf0(ich) = Ch_NO3intf0(ich) + &
-                        So_NO3intf0(i,isl,j)
-                  END DO
+                  !! interflow
+                  !DO isl = 1, domain%nsl
+                     !Ch_LDONintf0(ich) = Ch_LDONintf0(ich) + &
+                        !So_LDONintf0(i,isl,j)
+                     !Ch_RDONintf0(ich) = Ch_RDONintf0(ich) + &
+                        !So_RDONintf0(i,isl,j)
+                     !Ch_NH4intf0(ich) = Ch_NH4intf0(ich) + &
+                        !So_NH4intf0(i,isl,j)
+                     !Ch_NO3intf0(ich) = Ch_NO3intf0(ich) + &
+                        !So_NO3intf0(i,isl,j)
+                  !END DO
 
-               END IF
-            END DO
-         END DO
+               !END IF
+            !END DO
+         !END DO
+         !=====||__WHQ5403__||=====!
+         ! lateral loads of the link (module_lateralTransport; SedCNP_lateral_option 1: hydro-model paths, 0: gw basin sum)
+         Ch_LPONsurf0(ich) = latS_ch(10, ich)
+         Ch_RPONsurf0(ich) = latS_ch(11, ich)
+         Ch_LDONsurf0(ich) = latS_ch(12, ich)
+         Ch_RDONsurf0(ich) = latS_ch(13, ich)
+         Ch_MBMNsurf0(ich) = latS_ch(14, ich)
+         Ch_NH4surf0(ich) = latS_ch(15, ich)
+         Ch_NO3surf0(ich) = latS_ch(16, ich)
+         Ch_LDONintf0(ich) = latI_ch(3, ich)
+         Ch_RDONintf0(ich) = latI_ch(4, ich)
+         Ch_NH4intf0(ich) = latI_ch(5, ich)
+         Ch_NO3intf0(ich) = latI_ch(6, ich)
+         !=====||__WHQ5403__||=====!
 
          ! groundwater inflow
-         Ch_LDONgwch0(ich) = Gw_LDONgwch0(gwid)
-         Ch_RDONgwch0(ich) = Gw_RDONgwch0(gwid)
-         Ch_NH4gwch0(ich)  = Gw_NH4gwch0(gwid)
-         Ch_NO3gwch0(ich)  = Gw_NO3gwch0(gwid)
+         !Ch_LDONgwch0(ich) = Gw_LDONgwch0(gwid)
+         Ch_LDONgwch0(ich) = gw_to_ch(Gw_LDONgwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
+         !Ch_RDONgwch0(ich) = Gw_RDONgwch0(gwid)
+         Ch_RDONgwch0(ich) = gw_to_ch(Gw_RDONgwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
+         !Ch_NH4gwch0(ich)  = Gw_NH4gwch0(gwid)
+         Ch_NH4gwch0(ich)  = gw_to_ch(Gw_NH4gwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
+         !Ch_NO3gwch0(ich)  = Gw_NO3gwch0(gwid)
+         Ch_NO3gwch0(ich)  = gw_to_ch(Gw_NO3gwch0, ich)   !WHQ5403 gw basins of the link with the hydro-model weights
 
          ! update storage
          Ch_LPON(ich) = Ch_LPON(ich) + Ch_LPONsurf0(ich)
@@ -1165,20 +1187,42 @@ contains
       Ch_DENIT(ich) = Ch_NO3_init - RK4SOL
 
       ! --- outflow: downstream discharge
-      if (WStorage > 0.0 .and. Qdsch > 0.0) then
-         dPI = 1.0 - EXP(-2.3 * (Qdsch * dt) / (WStorage + Qdsch * dt))
-      else
-         dPI = 0.0
-      endif
+      !if (WStorage > 0.0 .and. Qdsch > 0.0) then
+         !dPI = 1.0 - EXP(-2.3 * (Qdsch * dt) / (WStorage + Qdsch * dt))
+      !else
+         !dPI = 0.0
+      !endif
+      !Ch_ALGNdsch(ich,:) = Ch_ALGN_init(:) * dPI
+      !Ch_ZOONdsch(ich)   = Ch_ZOON_init * dPI
+      !Ch_LPONdsch(ich)   = Ch_LPON_init * dPI
+      !Ch_RPONdsch(ich)   = Ch_RPON_init * dPI
+      !Ch_MBMNdsch(ich)   = Ch_MBMN_init * dPI
+      !Ch_LDONdsch(ich)   = Ch_LDON_init * dPI
+      !Ch_RDONdsch(ich)   = Ch_RDON_init * dPI
+      !Ch_NH4dsch(ich)    = Ch_NH4_init * dPI
+      !Ch_NO3dsch(ich)    = Ch_NO3_init * dPI
+
+      !=====||__WHQ5403__||=====!
+      ! discharge fraction with the eta parameters of the CNPparams file (as in module_Carbon);
+      ! the hard-coded eta = 2.3 above ignored etaNH4dsch/etaNO3dsch
+      !POM
+      dPI = calc_dPI(etaPOMdsch, Qdsch * dt, WStorage)
       Ch_ALGNdsch(ich,:) = Ch_ALGN_init(:) * dPI
       Ch_ZOONdsch(ich)   = Ch_ZOON_init * dPI
       Ch_LPONdsch(ich)   = Ch_LPON_init * dPI
       Ch_RPONdsch(ich)   = Ch_RPON_init * dPI
       Ch_MBMNdsch(ich)   = Ch_MBMN_init * dPI
+      !DOM
+      dPI = calc_dPI(etaDOMdsch, Qdsch * dt, WStorage)
       Ch_LDONdsch(ich)   = Ch_LDON_init * dPI
       Ch_RDONdsch(ich)   = Ch_RDON_init * dPI
+      !NH4
+      dPI = calc_dPI(etaNH4dsch, Qdsch * dt, WStorage)
       Ch_NH4dsch(ich)    = Ch_NH4_init * dPI
+      !NO3
+      dPI = calc_dPI(etaNO3dsch, Qdsch * dt, WStorage)
       Ch_NO3dsch(ich)    = Ch_NO3_init * dPI
+      !=====||__WHQ5403__||=====!
 
       ! === B. SCALE FLUXES TO ENSURE MASS CONSERVATION
 
@@ -1464,7 +1508,8 @@ contains
 
       dt = real(SedCNPmodel%SedCNP_timestep)
       chid = SedCNP_hydro%linkID(ich)
-      gwid = domain%gwid_ch(chid)
+      !gwid = domain%gwid_ch(chid)
+      gwid = domain%gwid_ch(ich)   !WHQ5403 indexed by channel index, not link ID
 
       Ch_NSC(ich)  = &
               (Ch_ALGN(ich,1)     - Ch_ALGN0(ich,1))     &
