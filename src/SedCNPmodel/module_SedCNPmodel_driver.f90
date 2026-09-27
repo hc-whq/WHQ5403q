@@ -1271,6 +1271,7 @@ module module_SedCNPmodel_driver
       use hashtable, only: hash_t   !WHQ5403 link ID -> channel index mapping
       use module_lakeSedCNP, only: Lake_Init, Lake_UpdateHydro   !WHQ5403 lakes/reservoirs
       use module_lateralTransport, only: Lateral_Transport_Init, Lateral_Loads   !WHQ5403 lateral loads to channels
+      use module_CNPrestart, only: Write_CNP_Restart, Read_CNP_Restart, CNP_Restart_Due   !WHQ5403 NetCDF restart files
 #ifdef MPP_LAND
       use module_mpp_land, only: mpp_land_sync, my_id, io_id
 #endif
@@ -1817,6 +1818,7 @@ module module_SedCNPmodel_driver
             !call ReadCNPini_Aq () !BK20230319
             call ReadCNPini_Gw () !BK20230319
             call ReadCNPini_Ch () !BK20230319
+            call Read_CNP_Restart()   !WHQ5403 NetCDF restart files (RESTART_FILENAME_* in whq.namelist)
 
             ! --- initialize current state with initial conditions  
             ! --- to prevent mass balance error at first step   !BK20251216
@@ -2008,6 +2010,10 @@ module module_SedCNPmodel_driver
             call UpdateCNP_Ch(ich)
          enddo  
 
+         !WHQ5403 NetCDF restart files every WHQ_RESTART_DT minutes and at the end of the simulation
+         ! (before SedCNPmodel_output, which advances dateSedCNP%olddate to the next time-step)
+         if (CNP_Restart_Due(itime)) call Write_CNP_Restart()
+
          !write output
          call SedCNPmodel_output(itime) 
 
@@ -2015,10 +2021,11 @@ module module_SedCNPmodel_driver
          if (itime == domain%ntime_sedcnp) then   !Y.Kwon 20230316
             !domain%areaxy = SedCNPmodel%SedCNP_dx * SedCNPmodel%SedCNP_dx  !BK20230319
             domain%areaxy = SedCNP_hydro%dx(1) * SedCNP_hydro%dx(1)        !Y.Kwon(20250621)
-            call WriteCNPini_So()
+            !WHQ5403 text initial condition files replaced by the NetCDF restart files (Write_CNP_Restart)
+            !call WriteCNPini_So()
             !call WriteCNPini_Aq()
-            call WriteCNPini_Gw()
-            call WriteCNPini_Ch()
+            !call WriteCNPini_Gw()
+            !call WriteCNPini_Ch()
             call Deallocate_Temp()      !20231018
          endif
 

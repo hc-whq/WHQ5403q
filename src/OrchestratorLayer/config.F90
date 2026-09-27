@@ -106,6 +106,11 @@ module config_base
                            CH_PNTSRC_file, CH_ABSDIS_file, CNPinputs_file, &
                            SOILPSF_file, CNPparams_file, config_paddy_file, &
                            SEDparams_file
+     !WHQ5403 SedCNP restart files (NetCDF): input file names and output interval [minutes]
+     character(len=256) :: restart_filename_soc = '', restart_filename_son = '', restart_filename_sop = '', &
+                           restart_filename_gwc = '', restart_filename_gwn = '', restart_filename_gwp = '', &
+                           restart_filename_chc = '', restart_filename_chn = '', restart_filename_chp = ''
+     integer            :: whq_restart_dt = -9999   ! <= 0: restart files only at the end of the simulation
 
   end type SedCNPmodel_OFFLINE_
   !
@@ -1097,6 +1102,11 @@ contains
                           CH_PNTSRC_file, CH_ABSDIS_file, CNPinputs_file, &
                           SOILPSF_file, CNPparams_file, config_paddy_file, &
                           SEDparams_file
+    !WHQ5403 SedCNP restart files (NetCDF)
+    character(len=256) :: RESTART_FILENAME_SOC = '', RESTART_FILENAME_SON = '', RESTART_FILENAME_SOP = '', &
+                          RESTART_FILENAME_GWC = '', RESTART_FILENAME_GWN = '', RESTART_FILENAME_GWP = '', &
+                          RESTART_FILENAME_CHC = '', RESTART_FILENAME_CHN = '', RESTART_FILENAME_CHP = ''
+    integer            :: WHQ_RESTART_DT = -9999
     !
     !=====||___WHQ___||=====!
 
@@ -1142,7 +1152,11 @@ contains
          CiniCh_file, NiniCh_file, PiniCh_file, &
          CH_PNTSRC_file, CH_ABSDIS_file, &
          CNPinputs_file, SOILPSF_file, &
-         CNPparams_file, config_paddy_file, SEDparams_file
+         CNPparams_file, config_paddy_file, SEDparams_file, &
+         RESTART_FILENAME_SOC, RESTART_FILENAME_SON, RESTART_FILENAME_SOP, &   !WHQ5403
+         RESTART_FILENAME_GWC, RESTART_FILENAME_GWN, RESTART_FILENAME_GWP, &   !WHQ5403
+         RESTART_FILENAME_CHC, RESTART_FILENAME_CHN, RESTART_FILENAME_CHP, &   !WHQ5403
+         WHQ_RESTART_DT                                                        !WHQ5403
     !
     !=====||___WHQ___||=====!
 
@@ -1361,6 +1375,17 @@ contains
     SedCNPmodel%CNPparams_file          = trim(CNPparams_file)
     SedCNPmodel%config_paddy_file       = trim(config_paddy_file)
     SedCNPmodel%SEDparams_file          = trim(SEDparams_file)
+    !WHQ5403 SedCNP restart files (NetCDF)
+    SedCNPmodel%restart_filename_soc = trim(RESTART_FILENAME_SOC)
+    SedCNPmodel%restart_filename_son = trim(RESTART_FILENAME_SON)
+    SedCNPmodel%restart_filename_sop = trim(RESTART_FILENAME_SOP)
+    SedCNPmodel%restart_filename_gwc = trim(RESTART_FILENAME_GWC)
+    SedCNPmodel%restart_filename_gwn = trim(RESTART_FILENAME_GWN)
+    SedCNPmodel%restart_filename_gwp = trim(RESTART_FILENAME_GWP)
+    SedCNPmodel%restart_filename_chc = trim(RESTART_FILENAME_CHC)
+    SedCNPmodel%restart_filename_chn = trim(RESTART_FILENAME_CHN)
+    SedCNPmodel%restart_filename_chp = trim(RESTART_FILENAME_CHP)
+    SedCNPmodel%whq_restart_dt       = WHQ_RESTART_DT
     !
     !=====||___WHQ___||=====!
 

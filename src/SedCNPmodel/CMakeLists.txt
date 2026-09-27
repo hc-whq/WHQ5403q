@@ -25,6 +25,7 @@ add_library(hydro_SedCNPmodel STATIC
 #
 	module_lakeSedCNP.f90
 	module_lateralTransport.f90
+	module_CNPrestart.f90
 #
 #=====||__WHQ5403__||=====!
 	module_SedCNPmodel_driver.f90
