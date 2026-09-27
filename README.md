@@ -33,11 +33,11 @@ The water quality model (SedCNP: sediment, C, N, P) runs after the hydro model
   storage, outflow and the CHSEDOUT/CHCOUT/CHNOUT/CHPOUT variables at the lake outlet links.
 
 **Restart (initial condition) files** (`whq.namelist`, NetCDF)
-- Output: `<WHQOUT_dir>/RESTART_<kind>.YYYYMMDDHH_DOMAIN1.nc` for kind = `SOC`, `SON`, `SOP`,
+- Output: `<WHQOUT_dir>/RESTART_<kind>.YYYYMMDDHH_DOMAIN1` for kind = `SOC`, `SON`, `SOP`,
   `GWC`, `GWN`, `GWP`, `CHC`, `CHN`, `CHP`, every `WHQ_RESTART_DT` hours of model time
   (<= 0 or omitted: only at the end of the simulation) and at the end of the simulation.
   YYYYMMDDHH is the valid time of the state (soil kg ha-1, groundwater and channels kg).
-- Input: `RESTART_FILENAME_SOC = './RESTART_WHQ/RESTART_SOC.2020083116_DOMAIN1.nc'` etc.; start the
+- Input: `RESTART_FILENAME_SOC = './RESTART_WHQ/RESTART_SOC.2020083116_DOMAIN1'` etc.; start the
   run with `SedCNP_START_*` = the valid time of the files. A kind without a file name falls back to
   the text files (`CiniSo_file`, ...) or a cold start.
 

@@ -3,7 +3,7 @@
 !> @brief SedCNP restart (initial condition) files in NetCDF.
 !! @details
 !! Write: every WHQ_RESTART_DT hours of model time and at the end of the simulation, nine files
-!!   <WHQOUT_dir>/RESTART_<kind>.YYYYMMDDHH_DOMAIN1.nc, kind = SOC, SON, SOP (soil C/N/P),
+!!   <WHQOUT_dir>/RESTART_<kind>.YYYYMMDDHH_DOMAIN1, kind = SOC, SON, SOP (soil C/N/P),
 !!   GWC, GWN, GWP (groundwater), CHC, CHN, CHP (channels); YYYYMMDDHH is the valid time of the
 !!   state (end of the time-step). Units: soil kg ha-1, groundwater and channels kg.
 !! Read: at the first time-step, from RESTART_FILENAME_<kind> in whq.namelist (the next run starts
@@ -57,7 +57,8 @@ module module_CNPrestart
       stamp = dateSedCNP%olddate(1:4)//dateSedCNP%olddate(6:7)//dateSedCNP%olddate(9:10)// &
               dateSedCNP%olddate(12:13)
       do k = 1, 9
-         fname(k) = trim(SedCNPmodel%WHQOUT_dir)//'/RESTART_'//kinds(k)//'.'//trim(stamp)//'_DOMAIN1.nc'
+         !fname(k) = trim(SedCNPmodel%WHQOUT_dir)//'/RESTART_'//kinds(k)//'.'//trim(stamp)//'_DOMAIN1.nc'
+         fname(k) = trim(SedCNPmodel%WHQOUT_dir)//'/RESTART_'//kinds(k)//'.'//trim(stamp)//'_DOMAIN1'   !WHQ5403 no .nc
       enddo
 
       ! --- soil C
@@ -157,7 +158,7 @@ module module_CNPrestart
       !WHQ5403 not printed (user request)
       !call progress_clear()   !WHQ5403
       !write(6,*) 'INFO: SedCNP restart files written: ', trim(SedCNPmodel%WHQOUT_dir)//'/RESTART_*.'// &
-      !           trim(stamp)//'_DOMAIN1.nc'
+      !           trim(stamp)//'_DOMAIN1'
 
    end subroutine Write_CNP_Restart
 
